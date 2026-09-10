@@ -26,14 +26,18 @@ import {
   extractCommandFamily,
   calculateSimilarity,
   computeRecordAge,
-  assessStaleness,
 } from './match.js';
+import { getLockfileHashes, checkRecordStaleness, calculateWilsonScoreLowerBound } from './staleness.js';
+import { CommandPolicyEngine } from '../policy/commandPolicy.js';
 import { createMemoryLogger, type MemoryLogger } from './logger.js';
 import { JsonlStorage } from '../storage/jsonl.js';
 import { SqliteIndex } from '../storage/index.js';
+import type { VerifyFixInput, VerifyFixOutput } from '../types.js';
+import { VerifyFixZodSchema } from '../schemas/validation.js';
 
 export interface MemoryServiceOptions {
   memoryDir: string;
+  workspaceRoot?: string;
   repositoryId?: string;
   logger?: MemoryLogger;
 }
@@ -49,13 +53,16 @@ const POISONING_PATTERNS = [
 
 export class MemoryService {
   private memoryDir: string;
+  private workspaceRoot: string;
   private repositoryId: string;
   private logger: MemoryLogger;
   private jsonl: JsonlStorage;
   private sqlite: SqliteIndex;
+  private commandPolicy: CommandPolicyEngine;
 
   constructor(options: MemoryServiceOptions) {
     this.memoryDir = options.memoryDir;
+    this.workspaceRoot = options.workspaceRoot ?? path.dirname(this.memoryDir);
     this.repositoryId = options.repositoryId ?? 'default-repo';
 
     const logFilePath = path.join(this.memoryDir, 'logs.jsonl');
@@ -67,8 +74,15 @@ export class MemoryService {
     const dbPath = path.join(this.memoryDir, 'index.db');
     this.sqlite = new SqliteIndex(dbPath);
 
+    this.commandPolicy = new CommandPolicyEngine(this.workspaceRoot, this.memoryDir);
+
     this.logger.info(
-      { event: 'service_initialized', repo: this.repositoryId, dir: this.memoryDir },
+      {
+        event: 'service_initialized',
+        repo: this.repositoryId,
+        dir: this.memoryDir,
+        workspace: this.workspaceRoot,
+      },
       'MemoryService initialized',
     );
   }
@@ -154,7 +168,7 @@ export class MemoryService {
         os: process.platform,
         node: process.version,
         packageManager: 'npm',
-        lockfileHashes: {},
+        lockfileHashes: getLockfileHashes(this.workspaceRoot),
       },
       verification: {
         status: 'unknown',
@@ -235,7 +249,7 @@ export class MemoryService {
     if (exactRecord) {
       seenIds.add(exactRecord.id);
       const envelope = this.buildSanitizationEnvelope(exactRecord, 1.0);
-      const staleness = assessStaleness(exactRecord, CURRENT_NORMALIZER_VERSION);
+      const staleness = checkRecordStaleness(exactRecord, this.workspaceRoot, CURRENT_NORMALIZER_VERSION);
       matches.push({
         id: exactRecord.id,
         matchType: 'exact',
@@ -275,7 +289,7 @@ export class MemoryService {
 
         if (similarity >= input.threshold) {
           seenIds.add(candidate.id);
-          const staleness = assessStaleness(candidate, CURRENT_NORMALIZER_VERSION);
+          const staleness = checkRecordStaleness(candidate, this.workspaceRoot, CURRENT_NORMALIZER_VERSION);
           const envelope = this.buildSanitizationEnvelope(candidate, similarity);
 
           fuzzyCandidates.push({
@@ -322,6 +336,56 @@ export class MemoryService {
       queryFingerprint,
       retrievalCount: matches.length,
     };
+  }
+
+  /**
+   * Validates a fix command and optionally executes it under sandbox policy.
+   * Default mode is dry-run. Live execution requires a resolved approval entry.
+   */
+  async verifyFix(rawInput: VerifyFixInput): Promise<VerifyFixOutput> {
+    const input = VerifyFixZodSchema.parse(rawInput);
+
+    this.logger.info(
+      { event: 'verify_fix_start', recordId: input.recordId, dryRun: input.dryRun },
+      'verify_fix called',
+    );
+
+    const result = await this.commandPolicy.verifyFix(
+      input.command,
+      input.dryRun ?? true,
+      input.recordId,
+    );
+
+    // If a live execution passed, update the record's verification metadata
+    if (!input.dryRun && (result.status === 'passed' || result.status === 'failed') && input.recordId) {
+      const record = this.sqlite.findById(input.recordId);
+      if (record) {
+        const prevSuccesses = record.verification.wilsonLowerBound !== null
+          ? Math.round((record.verification.wilsonLowerBound + 0.5) * 2) // rough back-estimate
+          : 0;
+        const prevTotal = prevSuccesses + (record.verification.status === 'failed' ? 1 : 0);
+        const newSuccesses = prevSuccesses + (result.status === 'passed' ? 1 : 0);
+        const newTotal = prevTotal + 1;
+        const wilsonLowerBound = calculateWilsonScoreLowerBound(newSuccesses, newTotal);
+
+        const updated: typeof record = {
+          ...record,
+          verification: {
+            status: result.status,
+            verifiedAt: new Date().toISOString(),
+            method: 'sandboxed_execution',
+            wilsonLowerBound,
+          },
+        };
+        this.sqlite.indexRecord(updated);
+        this.logger.info(
+          { event: 'verify_fix_recorded', recordId: input.recordId, status: result.status, wilsonLowerBound },
+          'Verification outcome persisted',
+        );
+      }
+    }
+
+    return result;
   }
 
   /**

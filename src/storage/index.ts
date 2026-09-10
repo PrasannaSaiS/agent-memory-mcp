@@ -114,6 +114,13 @@ export class SqliteIndex {
     return JSON.parse(row.data) as MemoryRecord;
   }
 
+  findById(id: string): MemoryRecord | null {
+    const row = this.db.prepare('SELECT data FROM records WHERE id = ?').get(id) as
+      | { data: string }
+      | undefined;
+    return row ? (JSON.parse(row.data) as MemoryRecord) : null;
+  }
+
   /**
    * Fast candidates search using FTS5 BM25 or candidate fetch filtered by repo and command family.
    */

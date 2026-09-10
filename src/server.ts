@@ -19,9 +19,10 @@ import { createMemoryLogger } from './core/logger.js';
 import {
   RECORD_FAILURE_SCHEMA,
   FIND_FIX_SCHEMA,
+  VERIFY_FIX_SCHEMA,
   LIST_MEMORY_STATS_SCHEMA,
 } from './schemas/toolSchemas.js';
-import type { RecordFailureInput, FindFixInput, MemoryStatsInput } from './types.js';
+import type { RecordFailureInput, FindFixInput, MemoryStatsInput, VerifyFixInput } from './types.js';
 
 const workspaceDir = process.env.AGENT_MEMORY_DIR ?? path.join(process.cwd(), '.agent-memory');
 const repositoryId = process.env.AGENT_MEMORY_REPO ?? path.basename(process.cwd());
@@ -63,6 +64,12 @@ const TOOLS: Tool[] = [
     inputSchema: FIND_FIX_SCHEMA,
   },
   {
+    name: 'verify_fix',
+    description:
+      'Validates a fix command under policy (dry-run by default). Live execution requires an operator-resolved approval entry in .agent-memory/approvals-resolved.jsonl.',
+    inputSchema: VERIFY_FIX_SCHEMA,
+  },
+  {
     name: 'list_memory_stats',
     description: 'Returns aggregate statistics about the repository memory store.',
     inputSchema: LIST_MEMORY_STATS_SCHEMA,
@@ -100,6 +107,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: JSON.stringify(result, null, 2),
             },
           ],
+        };
+      }
+
+      case 'verify_fix': {
+        const result = await service.verifyFix(args as unknown as VerifyFixInput);
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       }
 
