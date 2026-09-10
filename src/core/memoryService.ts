@@ -22,6 +22,12 @@ import {
 import { redactSensitiveData } from './redact.js';
 import { normalizeOutput, CURRENT_NORMALIZER_VERSION } from './normalize.js';
 import { generateFingerprint } from './fingerprint.js';
+import {
+  extractCommandFamily,
+  calculateSimilarity,
+  computeRecordAge,
+  assessStaleness,
+} from './match.js';
 import { createMemoryLogger, type MemoryLogger } from './logger.js';
 import { JsonlStorage } from '../storage/jsonl.js';
 import { SqliteIndex } from '../storage/index.js';
@@ -204,6 +210,8 @@ export class MemoryService {
 
     this.logger.debug({ event: 'find_fix_start', command: input.command }, 'Finding fix');
 
+    const commandFamily = extractCommandFamily(input.command);
+
     // 1. Redact query error
     const redactedOutput = redactSensitiveData(input.output);
 
@@ -213,26 +221,91 @@ export class MemoryService {
     // 3. Compute fingerprint
     const queryFingerprint = generateFingerprint(normalizedOutput);
 
-    // 4. Exact lookup in SQLite index
-    const record = this.sqlite.findByFingerprint(queryFingerprint, input.includeQuarantined);
-
     const matches: FindFixMatch[] = [];
+    const seenIds = new Set<string>();
 
-    if (record) {
-      const envelope = this.buildSanitizationEnvelope(record, 1.0);
+    // 4. Exact lookup in SQLite index filtered by repository and command family
+    const exactRecord = this.sqlite.findByFingerprint(
+      queryFingerprint,
+      this.repositoryId,
+      commandFamily,
+      input.includeQuarantined,
+    );
+
+    if (exactRecord) {
+      seenIds.add(exactRecord.id);
+      const envelope = this.buildSanitizationEnvelope(exactRecord, 1.0);
+      const staleness = assessStaleness(exactRecord, CURRENT_NORMALIZER_VERSION);
       matches.push({
-        id: record.id,
+        id: exactRecord.id,
         matchType: 'exact',
+        score: 1.0,
         similarityScore: 1.0,
         confidenceScore: 1.0,
-        fingerprint: record.fingerprint,
+        threshold: input.threshold,
+        fingerprint: exactRecord.fingerprint,
         sanitizationEnvelope: envelope,
-        fix: record.fix,
-        verificationStatus: record.verification.status,
-        wilsonLowerBound: record.verification.wilsonLowerBound,
-        isStale: false,
-        isQuarantined: record.poisoningFlag !== null,
+        fix: exactRecord.fix,
+        verificationStatus: exactRecord.verification.status,
+        wilsonLowerBound: exactRecord.verification.wilsonLowerBound,
+        recordAge: computeRecordAge(exactRecord.createdAt),
+        staleReasons: staleness.staleReasons,
+        isStale: staleness.isStale,
+        provenance: exactRecord.provenance,
+        isQuarantined: exactRecord.poisoningFlag !== null,
       });
+    }
+
+    // 5. Conservative fuzzy fallback if more candidates needed
+    if (matches.length < input.limit) {
+      const candidates = this.sqlite.findCandidates(
+        this.repositoryId,
+        commandFamily,
+        normalizedOutput,
+        50,
+        input.includeQuarantined,
+      );
+
+      const fuzzyCandidates: FindFixMatch[] = [];
+
+      for (const candidate of candidates) {
+        if (seenIds.has(candidate.id)) continue;
+
+        const similarity = calculateSimilarity(normalizedOutput, candidate.normalizedOutput);
+
+        if (similarity >= input.threshold) {
+          seenIds.add(candidate.id);
+          const staleness = assessStaleness(candidate, CURRENT_NORMALIZER_VERSION);
+          const envelope = this.buildSanitizationEnvelope(candidate, similarity);
+
+          fuzzyCandidates.push({
+            id: candidate.id,
+            matchType: 'fuzzy',
+            score: similarity,
+            similarityScore: similarity,
+            confidenceScore: similarity,
+            threshold: input.threshold,
+            fingerprint: candidate.fingerprint,
+            sanitizationEnvelope: envelope,
+            fix: candidate.fix,
+            verificationStatus: candidate.verification.status,
+            wilsonLowerBound: candidate.verification.wilsonLowerBound,
+            recordAge: computeRecordAge(candidate.createdAt),
+            staleReasons: staleness.staleReasons,
+            isStale: staleness.isStale,
+            provenance: candidate.provenance,
+            isQuarantined: candidate.poisoningFlag !== null,
+          });
+        }
+      }
+
+      // Sort fuzzy candidates descending by similarity score
+      fuzzyCandidates.sort((a, b) => b.score - a.score);
+
+      for (const candidate of fuzzyCandidates) {
+        if (matches.length >= input.limit) break;
+        matches.push(candidate);
+      }
     }
 
     this.logger.info(

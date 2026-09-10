@@ -134,14 +134,19 @@ export interface FindFixInput {
 export interface FindFixMatch {
   id: string;
   matchType: MatchType;
+  score: number;
   similarityScore: number;
   confidenceScore: number;
+  threshold: number;
   fingerprint: string;
   sanitizationEnvelope: string;
   fix: Fix;
   verificationStatus: VerificationStatus;
   wilsonLowerBound: number | null;
+  recordAge: string;
+  staleReasons: string[];
   isStale: boolean;
+  provenance: Provenance;
   isQuarantined: boolean;
 }
 
