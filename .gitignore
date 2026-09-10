@@ -1,0 +1,42 @@
+﻿# Runtime data (SQLite index is disposable and must not be committed)
+.agent-memory/*.db
+.agent-memory/*.db-journal
+.agent-memory/*.db-wal
+.agent-memory/*.db-shm
+
+# Keep the JSONL source of truth and README but NOT secrets or logs
+.agent-memory/logs.jsonl
+.agent-memory/pending-approvals.jsonl
+.agent-memory/approvals-resolved.jsonl
+
+# Node
+node_modules/
+dist/
+build/
+
+# Dashboard build outputs
+dashboard/frontend/dist/
+dashboard/bridge/dist/
+
+# TypeScript caches
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Benchmark raw output (check in only final summarised results)
+scripts/benchmark-results-raw/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# env files (never commit secrets)
+.env
+.env.*
+!.env.example
