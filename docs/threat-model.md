@@ -91,3 +91,30 @@
 - [x] Multi-tier secret redaction runs before fingerprinting or persistence.
 - [x] All returned memories wrapped in sanitization XML envelopes.
 - [x] Commands restricted to whitelist, and dry-run is required unless explicit human approval is resolved.
+
+---
+
+## 5. Persisted-Retrieval Poisoning Defense & Threat Boundaries (Phase 5)
+
+### 5.1 What This Layer Defends Against
+1. **Direct Imperative Prompt Injections:** Known second-person imperative markers (e.g., `ignore previous instructions`, `pretend to be`, `you are now`, `override directives`).
+2. **Fake System Delimiters & Markers:** ChatML (`<|im_start|>`), LLaMA (`[INST]`, `<<SYS>>`), Alpaca delimiters (`BeginInstruction`), and pseudo-system notes mimicking LLM system prompts.
+3. **Data Exfiltration Signatures:** Explicit keywords and HTTP exfiltration patterns (`curl -X POST`, `exfiltrate`, `send your system prompt to`, `post the conversation context to http://...`).
+4. **Obfuscation Attempts:**
+   - Zero-width and invisible Unicode characters (`\u200B-\u200F`, `\u2028`, `\uFEFF`, soft hyphens, word-joiners).
+   - Unicode homoglyphs from Cyrillic, Greek, or fullwidth ASCII confusables attempting to bypass ASCII pattern matching.
+5. **High Imperative-Verb Density:** Explanations with abnormal concentration of imperative action verbs (`execute`, `bypass`, `delete`, `override`) (> 8% density over 20+ words).
+6. **Untrusted Data Containment via Sanitization Envelopes:** Wrapping retrieved records in explicit XML boundary tags (`<untrusted_historical_memory>`) with instruction-negation warnings and explicit quarantine tags (`<quarantine_warning>`).
+7. **Provenance-Weighted Trust Decay:** Decaying retrieval rank scores when Git commit provenance is missing (0.8x), when poisoning flags are present (0.5x), or when Wilson lower bounds on historical verification outcomes are low.
+
+### 5.2 What This Layer Does NOT Defend Against (Explicit Non-Goals & Limitations)
+> [!WARNING]
+> This subsystem is an application-level detection heuristic and containment envelope; **it is not, and does not claim to be, a mathematically provable or general prompt-injection defense**.
+
+Specifically, it does NOT defend against:
+1. **Novel or Paraphrased Semantic Injections:** Natural-language adversarial framing that does not use recognized keywords, delimiters, or high imperative density (e.g., subtle multi-turn gaslighting, plausible pseudo-technical arguments that mislead an agent into unintended actions).
+2. **Context-Dependent Semantic Manipulation:** Legitimate-sounding commands that are subtly malicious in a specific repository environment (e.g., suggesting an innocent-looking `npm install <typosquatted-package>` or altering a configuration flag that weakens security).
+3. **Model-Level Tokenizer & Attention Exploits:** Adversarial token sequences designed to disrupt LLM attention mechanisms or trigger unintended tokenizer merge states.
+4. **Execution-Level Sandboxing:** The detector does NOT execute, sandbox, or isolate runtime processes; safety at execution time relies strictly on `verify_fix` command allowlisting, workspace containment, and human approval files (`approvals-resolved.jsonl`).
+5. **Pre-Compromised Upstream Repositories:** If the Git repository itself is attacker-controlled, commit provenance checks can be satisfied legitimately by the attacker.
+6. **Blind Automated Execution by Consuming Agents:** If a consuming agent ignores the `<untrusted_historical_memory>` warning delimiters and blindly feeds the content directly into an unconstrained system or execution context, the envelope cannot enforce compliance at the LLM level.

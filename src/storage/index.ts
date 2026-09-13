@@ -185,31 +185,41 @@ export class SqliteIndex {
     total: number;
     exactFingerprints: number;
     quarantined: number;
+    verifiedCount: number;
+    pendingApprovals: number;
   } {
-    let countSql =
-      'SELECT COUNT(*) as total, COUNT(DISTINCT fingerprint) as distinctFps, SUM(is_quarantined) as quarantined FROM records';
-    if (repositoryId) {
-      countSql += ' WHERE repository_id = ?';
-      const stmt = this.db.prepare(countSql);
-      const row = stmt.get(repositoryId) as
-        | { total: number; distinctFps: number; quarantined: number | null }
-        | undefined;
-      return {
-        total: row?.total ?? 0,
-        exactFingerprints: row?.distinctFps ?? 0,
-        quarantined: row?.quarantined ?? 0,
-      };
-    } else {
-      const stmt = this.db.prepare(countSql);
-      const row = stmt.get() as
-        | { total: number; distinctFps: number; quarantined: number | null }
-        | undefined;
-      return {
-        total: row?.total ?? 0,
-        exactFingerprints: row?.distinctFps ?? 0,
-        quarantined: row?.quarantined ?? 0,
-      };
-    }
+    const whereClause = repositoryId ? 'WHERE repository_id = ?' : '';
+    const params = repositoryId ? [repositoryId] : [];
+
+    const countSql = `
+      SELECT
+        COUNT(*) as total,
+        COUNT(DISTINCT fingerprint) as distinctFps,
+        SUM(is_quarantined) as quarantined,
+        SUM(CASE WHEN json_extract(data, '$.verification.status') IN ('passed','failed') THEN 1 ELSE 0 END) as verifiedCount
+      FROM records ${whereClause}
+    `;
+
+    const row = (
+      repositoryId
+        ? this.db.prepare(countSql).get(...params)
+        : this.db.prepare(countSql).get()
+    ) as { total: number; distinctFps: number; quarantined: number | null; verifiedCount: number | null } | undefined;
+
+    return {
+      total: row?.total ?? 0,
+      exactFingerprints: row?.distinctFps ?? 0,
+      quarantined: row?.quarantined ?? 0,
+      verifiedCount: row?.verifiedCount ?? 0,
+      pendingApprovals: 0, // approvals live in JSONL; count is always 0 from SQLite
+    };
+  }
+
+  listRecentIds(limit: number): string[] {
+    const rows = this.db
+      .prepare('SELECT id FROM records ORDER BY created_at DESC LIMIT ?')
+      .all(limit) as { id: string }[];
+    return rows.map((r) => r.id);
   }
 
   close(): void {

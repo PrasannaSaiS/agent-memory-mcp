@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "agent-memory-mcp",
   "version": "0.1.0",
   "description": "Repository-scoped, git-synced error-fix memory MCP server. Targets MCP specification 2026-07-28.",
