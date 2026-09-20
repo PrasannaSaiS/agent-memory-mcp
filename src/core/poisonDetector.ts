@@ -58,19 +58,38 @@ const NESTED_INJECTION_PATTERNS: RegExp[] = [
 const ZERO_WIDTH_REGEX = /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\uFEFF\u00AD]/;
 
 /** Unicode homoglyph characters visually confusable with ASCII letters. */
-const HOMOGLYPH_REGEX = /[\u0430\u0435\u043E\u0440\u0441\u0443\u0445\u0456\u0458\u04CF\u03BF\u03C1\u03B1\u03B5\u03B9\u03BD\u03C5\u03C7\uFF01-\uFF5E]/;
+const HOMOGLYPH_REGEX =
+  /[\u0430\u0435\u043E\u0440\u0441\u0443\u0445\u0456\u0458\u04CF\u03BF\u03C1\u03B1\u03B5\u03B9\u03BD\u03C5\u03C7\uFF01-\uFF5E]/;
 
 const IMPERATIVE_VERBS = [
-  'run', 'execute', 'call', 'invoke', 'send', 'post', 'delete',
-  'remove', 'install', 'download', 'fetch', 'access', 'open',
-  'read', 'write', 'modify', 'override', 'bypass', 'disable',
-  'ignore', 'skip', 'forget', 'pretend', 'assume', 'believe',
+  'run',
+  'execute',
+  'call',
+  'invoke',
+  'send',
+  'post',
+  'delete',
+  'remove',
+  'install',
+  'download',
+  'fetch',
+  'access',
+  'open',
+  'read',
+  'write',
+  'modify',
+  'override',
+  'bypass',
+  'disable',
+  'ignore',
+  'skip',
+  'forget',
+  'pretend',
+  'assume',
+  'believe',
 ];
 
-const IMPERATIVE_VERB_PATTERN = new RegExp(
-  `\\b(${IMPERATIVE_VERBS.join('|')})\\b`,
-  'gi',
-);
+const IMPERATIVE_VERB_PATTERN = new RegExp(`\\b(${IMPERATIVE_VERBS.join('|')})\\b`, 'gi');
 
 const IMPERATIVE_DENSITY_THRESHOLD = 8;
 
@@ -173,7 +192,7 @@ export function detectPoisoning(text: string): PoisoningDetectionResult {
     return {
       flag: {
         raisedAt: new Date().toISOString(),
-        reason: `High imperative-verb density: ${density.toFixed(1)} per 100 words (threshold: ${IMPERATIVE_DENSITY_THRESHOLD})`,
+        reason: `High imperative-verb density: ${density.toFixed(1)} per 100 words (threshold: ${String(IMPERATIVE_DENSITY_THRESHOLD)})`,
         status: 'reviewed',
       },
       detectorId: 'imperative_density',

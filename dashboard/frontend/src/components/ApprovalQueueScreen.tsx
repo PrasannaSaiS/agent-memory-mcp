@@ -41,18 +41,34 @@ export function ApprovalQueueScreen({ approvals, onDecision }: Props): ReactNode
       <div className="screen-header">
         <h1 className="screen-title">Human-in-the-Loop Approval Queue</h1>
         <p className="screen-subtitle">
-          Pending dry-run verify_fix executions requiring explicit operator authorization before execution.
+          Pending dry-run verify_fix executions requiring explicit operator authorization before
+          execution.
         </p>
       </div>
 
       {approvals.length === 0 ? (
         <div className="panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🛡️</div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+          <h2
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem',
+            }}
+          >
             Approval Queue Clean
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '500px', margin: '0 auto' }}>
-            No commands are awaiting execution approval. When an agent calls verify_fix with a non-allowlisted command, dry-run safety intercepts it here.
+          <p
+            style={{
+              color: 'var(--text-secondary)',
+              fontSize: '0.9rem',
+              maxWidth: '500px',
+              margin: '0 auto',
+            }}
+          >
+            No commands are awaiting execution approval. When an agent calls verify_fix with a
+            non-allowlisted command, dry-run safety intercepts it here.
           </p>
         </div>
       ) : (
@@ -62,17 +78,39 @@ export function ApprovalQueueScreen({ approvals, onDecision }: Props): ReactNode
               key={appr.approvalId}
               className="panel"
               style={{
-                borderLeft: appr.risk.level === 'HIGH' ? '4px solid var(--accent-rose)' : '4px solid var(--accent-amber)',
+                borderLeft:
+                  appr.risk.level === 'HIGH'
+                    ? '4px solid var(--accent-rose)'
+                    : '4px solid var(--accent-amber)',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: '1rem',
+                }}
+              >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
-                    <span className="mono" style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--accent-cyan)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    <span
+                      className="mono"
+                      style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--accent-cyan)' }}
+                    >
                       {appr.approvalId}
                     </span>
                     {getRiskBadge(appr.risk.level)}
-                    {appr.recordId && <span className="mono badge gray">Record: {appr.recordId}</span>}
+                    {appr.recordId && (
+                      <span className="mono badge gray">Record: {appr.recordId}</span>
+                    )}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     Queued: {new Date(appr.createdAt).toLocaleString()}
@@ -99,17 +137,32 @@ export function ApprovalQueueScreen({ approvals, onDecision }: Props): ReactNode
 
               {/* Requested Command */}
               <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.78rem',
+                    color: 'var(--text-muted)',
+                    marginBottom: '0.35rem',
+                  }}
+                >
                   Requested Execution Command:
                 </div>
-                <div className="code-block mono" style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                <div
+                  className="code-block mono"
+                  style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}
+                >
                   {appr.requestedCommand}
                 </div>
               </div>
 
               {/* Risk Reasons */}
               <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.78rem',
+                    color: 'var(--text-muted)',
+                    marginBottom: '0.35rem',
+                  }}
+                >
                   Risk Assessment:
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>

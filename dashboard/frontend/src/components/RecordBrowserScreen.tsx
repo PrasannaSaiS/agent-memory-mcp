@@ -43,7 +43,8 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
       <div className="screen-header">
         <h1 className="screen-title">Record Browser & Detail</h1>
         <p className="screen-subtitle">
-          Searchable catalog of error-fix memories, fingerprints, provenance metadata, and supersedes history.
+          Searchable catalog of error-fix memories, fingerprints, provenance metadata, and
+          supersedes history.
         </p>
       </div>
 
@@ -77,9 +78,13 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
             onChange={(e) => setFamilyFilter(e.target.value)}
           >
             <option value="all">All Command Families</option>
-            {commandFamilies.filter((f) => f !== 'all').map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
+            {commandFamilies
+              .filter((f) => f !== 'all')
+              .map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
           </select>
 
           <select
@@ -114,19 +119,21 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                  <td
+                    colSpan={8}
+                    style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}
+                  >
                     No matching memory records found.
                   </td>
                 </tr>
               ) : (
                 filtered.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => handleRowClick(r.id)}
-                    style={{ cursor: 'pointer' }}
-                  >
+                  <tr key={r.id} onClick={() => handleRowClick(r.id)} style={{ cursor: 'pointer' }}>
                     <td>
-                      <span className="mono" style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}>
+                      <span
+                        className="mono"
+                        style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}
+                      >
                         {r.id}
                       </span>
                     </td>
@@ -139,7 +146,10 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
                       <span className="badge purple">{r.commandFamily}</span>
                     </td>
                     <td>
-                      <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      <span
+                        className="mono"
+                        style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
+                      >
                         {r.fingerprint.slice(0, 16)}...
                       </span>
                     </td>
@@ -185,10 +195,7 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
       </div>
 
       {/* Detail Drawer */}
-      <RecordDetailDrawer
-        record={selectedRecord}
-        onClose={() => setSelectedRecord(null)}
-      />
+      <RecordDetailDrawer record={selectedRecord} onClose={() => setSelectedRecord(null)} />
     </div>
   );
 }

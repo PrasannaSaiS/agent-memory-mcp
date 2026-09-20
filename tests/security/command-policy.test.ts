@@ -127,7 +127,17 @@ describe('CommandPolicyEngine — binary allowlist', () => {
     }
   });
 
-  const forbiddenBinaries = ['curl', 'wget', 'bash', 'sh', 'powershell', 'cmd', 'python2', 'node', 'cat'];
+  const forbiddenBinaries = [
+    'curl',
+    'wget',
+    'bash',
+    'sh',
+    'powershell',
+    'cmd',
+    'python2',
+    'node',
+    'cat',
+  ];
   for (const binary of forbiddenBinaries) {
     it(`blocks non-allowlisted binary: ${binary}`, () => {
       const result = engine.validateCommand(`${binary} --version`);
@@ -178,7 +188,7 @@ describe('CommandPolicyEngine — approval gate', () => {
     expect(result.status).toBe('dry_run_allowed');
   });
 
-  it('resolves execution when matching approval exists in approvals-resolved.jsonl', async () => {
+  it('resolves execution when matching approval exists in approvals-resolved.jsonl', () => {
     // Write a resolved approval
     const memoryDir = path.join(tmpDir, '.agent-memory');
     fs.mkdirSync(memoryDir, { recursive: true });
@@ -233,7 +243,7 @@ describe('CommandPolicyEngine — secret redaction in outputs', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('dry-run correctly blocks secret-containing commands', async () => {
+  it('dry-run correctly blocks secret-containing commands', () => {
     // A command containing secret references should be policy-checked, not executed
     // The redaction concern here is on outputs from execution — we test policy blocks
     const secretCmd = 'curl https://api.example.com -H "Authorization: Bearer sk-secret-token"';
@@ -265,14 +275,20 @@ describe('CommandPolicyEngine — stale lockfile detection', () => {
   it('checkRecordStaleness flags stale record when lockfile changed', async () => {
     const tmpDir = makeTmpDir();
     try {
-      const { checkRecordStaleness, getLockfileHashes } = await import('../../src/core/staleness.js');
+      const { checkRecordStaleness, getLockfileHashes } = await import(
+        '../../src/core/staleness.js'
+      );
 
       // Create an initial lockfile
       fs.writeFileSync(path.join(tmpDir, 'package-lock.json'), '{"lockfileVersion":3}', 'utf8');
       const originalHashes = getLockfileHashes(tmpDir);
 
       // Now change the lockfile (simulate drift)
-      fs.writeFileSync(path.join(tmpDir, 'package-lock.json'), '{"lockfileVersion":3,"updated":true}', 'utf8');
+      fs.writeFileSync(
+        path.join(tmpDir, 'package-lock.json'),
+        '{"lockfileVersion":3,"updated":true}',
+        'utf8',
+      );
 
       const mockRecord = {
         schemaVersion: 1 as const,
@@ -286,8 +302,18 @@ describe('CommandPolicyEngine — stale lockfile detection', () => {
         fingerprint: 'sha256:abc',
         normalizerVersion: 1,
         fix: { commands: ['npm test'], explanation: 'fix', risk: 'low' as const },
-        environment: { os: 'linux', node: 'v20.0.0', packageManager: 'npm', lockfileHashes: originalHashes },
-        verification: { status: 'unknown' as const, verifiedAt: null, method: 'dry_run', wilsonLowerBound: null },
+        environment: {
+          os: 'linux',
+          node: 'v20.0.0',
+          packageManager: 'npm',
+          lockfileHashes: originalHashes,
+        },
+        verification: {
+          status: 'unknown' as const,
+          verifiedAt: null,
+          method: 'dry_run',
+          wilsonLowerBound: null,
+        },
         provenance: { author: 'developer', commit: null },
         supersedes: null,
         tags: [],
@@ -319,7 +345,12 @@ describe('CommandPolicyEngine — stale lockfile detection', () => {
         normalizerVersion: 1, // old version
         fix: { commands: ['npm test'], explanation: 'fix', risk: 'low' as const },
         environment: { os: 'linux', node: 'v20.0.0', packageManager: 'npm', lockfileHashes: {} },
-        verification: { status: 'unknown' as const, verifiedAt: null, method: 'dry_run', wilsonLowerBound: null },
+        verification: {
+          status: 'unknown' as const,
+          verifiedAt: null,
+          method: 'dry_run',
+          wilsonLowerBound: null,
+        },
         provenance: { author: 'developer', commit: null },
         supersedes: null,
         tags: [],
@@ -354,7 +385,12 @@ describe('CommandPolicyEngine — stale lockfile detection', () => {
         normalizerVersion: 1,
         fix: { commands: ['npm test'], explanation: 'fix', risk: 'low' as const },
         environment: { os: 'linux', node: 'v20.0.0', packageManager: 'npm', lockfileHashes: {} },
-        verification: { status: 'unknown' as const, verifiedAt: null, method: 'dry_run', wilsonLowerBound: null },
+        verification: {
+          status: 'unknown' as const,
+          verifiedAt: null,
+          method: 'dry_run',
+          wilsonLowerBound: null,
+        },
         provenance: { author: 'developer', commit: null },
         supersedes: null,
         tags: [],
@@ -380,14 +416,16 @@ describe('Wilson-score lower bound', () => {
     const { calculateWilsonScoreLowerBound } = await import('../../src/core/staleness.js');
     const lb = calculateWilsonScoreLowerBound(8, 10);
     expect(lb).not.toBeNull();
-    expect(lb!).toBeGreaterThanOrEqual(0);
-    expect(lb!).toBeLessThanOrEqual(1);
+    if (lb === null) throw new Error('Expected non-null lb');
+    expect(lb).toBeGreaterThanOrEqual(0);
+    expect(lb).toBeLessThanOrEqual(1);
   });
 
   it('all successes gives a higher lower bound than half successes', async () => {
     const { calculateWilsonScoreLowerBound } = await import('../../src/core/staleness.js');
-    const allPass = calculateWilsonScoreLowerBound(10, 10)!;
-    const halfPass = calculateWilsonScoreLowerBound(5, 10)!;
+    const allPass = calculateWilsonScoreLowerBound(10, 10);
+    const halfPass = calculateWilsonScoreLowerBound(5, 10);
+    if (allPass === null || halfPass === null) throw new Error('Expected non-null Wilson bounds');
     expect(allPass).toBeGreaterThan(halfPass);
   });
 });

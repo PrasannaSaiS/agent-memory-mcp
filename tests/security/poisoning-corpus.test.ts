@@ -24,14 +24,15 @@ describe('poisoning corpus — detector coverage', () => {
   for (const fixture of poisonedFixtures) {
     it(`[${fixture.id}] ${fixture.description}`, () => {
       const result = detectPoisoning(fixture.payload);
-      expect(result.flag, `Expected flag from detector '${fixture.expectedDetector}' but got null`).not.toBeNull();
-      expect(result.flag!.status).toBe('reviewed');
-      expect(result.flag!.reason.length).toBeGreaterThan(0);
+      expect(result.flag).not.toBeNull();
+      if (!result.flag) throw new Error('Expected flag');
+      expect(result.flag.status).toBe('reviewed');
+      expect(result.flag.reason.length).toBeGreaterThan(0);
       // Verify the expected detector fired (unless it's a density check which may vary)
       if (fixture.expectedDetector !== 'imperative_density') {
         expect(
           result.detectorId,
-          `Expected detector '${fixture.expectedDetector}' but got '${result.detectorId ?? 'null'}'`
+          `Expected detector '${fixture.expectedDetector}' but got '${result.detectorId ?? 'null'}'`,
         ).toBe(fixture.expectedDetector);
       }
     });
@@ -40,7 +41,10 @@ describe('poisoning corpus — detector coverage', () => {
   for (const fixture of cleanFixtures) {
     it(`[${fixture.id}] (clean) ${fixture.description}`, () => {
       const result = detectPoisoning(fixture.payload);
-      expect(result.flag, `Clean fixture was incorrectly flagged by detector '${result.detectorId ?? 'unknown'}'`).toBeNull();
+      expect(
+        result.flag,
+        `Clean fixture was incorrectly flagged by detector '${result.detectorId ?? 'unknown'}'`,
+      ).toBeNull();
     });
   }
 });
@@ -96,7 +100,7 @@ describe('sanitization envelope — format contract', () => {
         output: 'Error: Cannot find module react',
       });
       if (result.matches.length > 0) {
-        const envelope = result.matches[0]!.sanitizationEnvelope;
+        const envelope = result.matches[0]?.sanitizationEnvelope;
         expect(envelope).toContain('<untrusted_historical_memory');
         expect(envelope).toContain('</untrusted_historical_memory>');
         expect(envelope).toContain('<warning>');
@@ -133,10 +137,10 @@ describe('sanitization envelope — format contract', () => {
         includeQuarantined: true,
       });
       if (result.matches.length > 0) {
-        const envelope = result.matches[0]!.sanitizationEnvelope;
+        const envelope = result.matches[0]?.sanitizationEnvelope;
         expect(envelope).toContain('quarantine_warning');
         expect(envelope).toContain('quarantined="true"');
-        expect(result.matches[0]!.isQuarantined).toBe(true);
+        expect(result.matches[0]?.isQuarantined).toBe(true);
       }
     } finally {
       service.close();
@@ -166,8 +170,8 @@ describe('provenance-weighted trust', () => {
       });
       if (result.matches.length > 0) {
         // Records without git commit should have trust < 1.0 (decayed by 0.85 factor)
-        expect(result.matches[0]!.confidenceScore).toBeLessThan(1.0);
-        expect(result.matches[0]!.similarityScore).toBe(1.0); // raw similarity unchanged
+        expect(result.matches[0]?.confidenceScore).toBeLessThan(1.0);
+        expect(result.matches[0]?.similarityScore).toBe(1.0); // raw similarity unchanged
       }
     } finally {
       service.close();
@@ -195,10 +199,13 @@ describe('provenance-weighted trust', () => {
         includeQuarantined: true,
       });
       if (result.matches.length > 0) {
-        const match = result.matches[0]!;
-        expect(match.isQuarantined).toBe(true);
-        // Quarantined: base 0.85 (no commit) * 0.5 (quarantine) = 0.425
-        expect(match.confidenceScore).toBeLessThan(0.5);
+        const match = result.matches[0];
+        expect(match).toBeDefined();
+        if (match) {
+          expect(match.isQuarantined).toBe(true);
+          // Quarantined: base 0.85 (no commit) * 0.5 (quarantine) = 0.425
+          expect(match.confidenceScore).toBeLessThan(0.5);
+        }
       }
     } finally {
       service.close();
@@ -288,7 +295,9 @@ describe('detectPoisoning — detector unit tests', () => {
   });
 
   it('returns null for normal technical explanation', () => {
-    const r = detectPoisoning('Run npm ci to restore a clean node_modules directory from the lockfile.');
+    const r = detectPoisoning(
+      'Run npm ci to restore a clean node_modules directory from the lockfile.',
+    );
     expect(r.flag).toBeNull();
   });
 });

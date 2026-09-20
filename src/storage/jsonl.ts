@@ -40,7 +40,7 @@ export class JsonlStorage {
     const records: MemoryRecord[] = [];
     for (let i = 0; i < lines.length; i++) {
       try {
-        records.push(JSON.parse(lines[i]!) as MemoryRecord);
+        records.push(JSON.parse(lines[i] ?? '') as MemoryRecord);
       } catch {
         // CORRUPTED LINE: log to stderr (never stdout) and skip.
         // The SQLite index remains authoritative; re-index by re-reading valid records.
@@ -50,7 +50,7 @@ export class JsonlStorage {
             event: 'jsonl_corrupted_line',
             file: this.filePath,
             lineNumber: i + 1,
-            preview: lines[i]!.slice(0, 80),
+            preview: (lines[i] ?? '').slice(0, 80),
             recovery: 'line skipped; re-run index rebuild from valid lines',
           }) + '\n',
         );

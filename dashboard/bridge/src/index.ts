@@ -54,7 +54,12 @@ export function buildServer() {
   });
 
   fastify.register(cors, {
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4321', 'http://127.0.0.1:4321'],
+    origin: [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:4321',
+      'http://127.0.0.1:4321',
+    ],
     methods: ['GET', 'POST', 'OPTIONS'],
   });
 
@@ -112,10 +117,14 @@ export function buildServer() {
   // 5. Operator approval decision (ONLY permitted mutation)
   fastify.post('/api/approvals/:id/decision', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { decision?: 'approve' | 'deny'; operatorNotes?: string } | undefined;
+    const body = request.body as
+      | { decision?: 'approve' | 'deny'; operatorNotes?: string }
+      | undefined;
 
     if (!body || !body.decision || (body.decision !== 'approve' && body.decision !== 'deny')) {
-      return reply.status(400).send({ error: "Invalid body: 'decision' must be 'approve' or 'deny'" });
+      return reply
+        .status(400)
+        .send({ error: "Invalid body: 'decision' must be 'approve' or 'deny'" });
     }
 
     const result = storage.resolveApproval(id, body.decision, body.operatorNotes);
@@ -139,12 +148,37 @@ export function buildServer() {
     // Default baseline dataset matching Phase 8 evaluation spec
     return {
       status: 'pre_evaluation',
-      description: 'Phase 8 Benchmark Baselines: B0 (No Memory), B1 (Exact Fingerprint), B2 (Fuzzy + Trust), B3 (Full Verified Memory)',
+      description:
+        'Phase 8 Benchmark Baselines: B0 (No Memory), B1 (Exact Fingerprint), B2 (Fuzzy + Trust), B3 (Full Verified Memory)',
       baselines: [
-        { name: 'B0: No Memory', timeToRepairSec: 142, toolCalls: 8.4, successRate: 0.42, falseReuseRate: 0.0 },
-        { name: 'B1: Exact Fingerprint', timeToRepairSec: 34, toolCalls: 2.1, successRate: 0.81, falseReuseRate: 0.04 },
-        { name: 'B2: Fuzzy + Trust', timeToRepairSec: 28, toolCalls: 2.4, successRate: 0.88, falseReuseRate: 0.06 },
-        { name: 'B3: Full Verified', timeToRepairSec: 18, toolCalls: 1.8, successRate: 0.94, falseReuseRate: 0.01 },
+        {
+          name: 'B0: No Memory',
+          timeToRepairSec: 142,
+          toolCalls: 8.4,
+          successRate: 0.42,
+          falseReuseRate: 0.0,
+        },
+        {
+          name: 'B1: Exact Fingerprint',
+          timeToRepairSec: 34,
+          toolCalls: 2.1,
+          successRate: 0.81,
+          falseReuseRate: 0.04,
+        },
+        {
+          name: 'B2: Fuzzy + Trust',
+          timeToRepairSec: 28,
+          toolCalls: 2.4,
+          successRate: 0.88,
+          falseReuseRate: 0.06,
+        },
+        {
+          name: 'B3: Full Verified',
+          timeToRepairSec: 18,
+          toolCalls: 1.8,
+          successRate: 0.94,
+          falseReuseRate: 0.01,
+        },
       ],
       retrievalLatencyMs: {
         records100: { p50: 0.4, p95: 1.2 },
@@ -166,8 +200,18 @@ export function buildServer() {
 
     return {
       redactionLayers: [
-        { layer: 'Layer 1: Deterministic Regex Patterns', status: 'active', recall: 1.0, patterns: ['GitHub PAT', 'AWS Keys', 'OpenAI/Anthropic Keys', 'JWT', 'PEM'] },
-        { layer: 'Layer 2: Shannon Entropy Scoring', status: 'active', threshold: 4.5, highEntropyCaptured: true },
+        {
+          layer: 'Layer 1: Deterministic Regex Patterns',
+          status: 'active',
+          recall: 1.0,
+          patterns: ['GitHub PAT', 'AWS Keys', 'OpenAI/Anthropic Keys', 'JWT', 'PEM'],
+        },
+        {
+          layer: 'Layer 2: Shannon Entropy Scoring',
+          status: 'active',
+          threshold: 4.5,
+          highEntropyCaptured: true,
+        },
       ],
       poisoningAudit: {
         totalInspected: records.length,
@@ -181,7 +225,11 @@ export function buildServer() {
         })),
         detectors: [
           { id: 'imperative_injection', name: 'Imperative Prompt Injections', status: 'active' },
-          { id: 'system_prompt_marker', name: 'Fake System Markers (ChatML/INST/SYS)', status: 'active' },
+          {
+            id: 'system_prompt_marker',
+            name: 'Fake System Markers (ChatML/INST/SYS)',
+            status: 'active',
+          },
           { id: 'exfiltration', name: 'Data Exfiltration Signatures', status: 'active' },
           { id: 'nested_injection', name: 'Nested Quoted/Encoded Injections', status: 'active' },
           { id: 'zero_width', name: 'Zero-Width Character Obfuscation', status: 'active' },
@@ -196,18 +244,26 @@ export function buildServer() {
   fastify.get('/api/explainability', async (request) => {
     const query = request.query as { id?: string };
     const records = storage.getRecords({ limit: 10 });
-    const target = query.id ? storage.getRecordById(query.id) : (records[0] ? storage.getRecordById(records[0].id) : null);
+    const target = query.id
+      ? storage.getRecordById(query.id)
+      : records[0]
+        ? storage.getRecordById(records[0].id)
+        : null;
 
     return {
       query: target?.command ?? 'npm run build',
-      threshold: 0.70,
+      threshold: 0.7,
       candidates: records.slice(0, 5).map((r, idx) => ({
         id: r.id,
         command: r.command,
         commandFamily: r.commandFamily,
         matchType: idx === 0 ? 'exact' : 'fuzzy',
         similarityScore: idx === 0 ? 1.0 : Number((0.92 - idx * 0.08).toFixed(2)),
-        trustScore: r.isQuarantined ? 0.45 : (r.wilsonLowerBound ? Number((0.5 + 0.5 * r.wilsonLowerBound).toFixed(2)) : 0.85),
+        trustScore: r.isQuarantined
+          ? 0.45
+          : r.wilsonLowerBound
+            ? Number((0.5 + 0.5 * r.wilsonLowerBound).toFixed(2))
+            : 0.85,
         passesThreshold: idx < 3,
         passedFilters: {
           repository: true,
@@ -248,6 +304,24 @@ export function buildServer() {
       clearInterval(pingInterval);
       unsubscribe();
     });
+  });
+
+  // 10. Benchmark results — served from .agent-memory/benchmark-results.json
+  // Populated by `npm run benchmark:run` (Phase 8 harness). Returns null if not yet run.
+  fastify.get('/api/benchmark', async (_request, reply) => {
+    const benchPath = path.join(memoryDir, 'benchmark-results.json');
+    if (!fs.existsSync(benchPath)) {
+      return reply
+        .status(404)
+        .send({ error: 'Benchmark results not yet available. Run: npm run benchmark:run' });
+    }
+    try {
+      const raw = fs.readFileSync(benchPath, 'utf8');
+      const data = JSON.parse(raw) as unknown;
+      return reply.send(data);
+    } catch {
+      return reply.status(500).send({ error: 'benchmark-results.json is malformed' });
+    }
   });
 
   return { fastify, storage, tailer };

@@ -108,7 +108,7 @@ export default function App(): ReactNode {
   const handleDecision = async (
     id: string,
     decision: 'approve' | 'deny',
-    notes?: string
+    notes?: string,
   ): Promise<boolean> => {
     try {
       const res = await fetch(`/api/approvals/${id}/decision`, {
@@ -185,7 +185,14 @@ export default function App(): ReactNode {
             onClick={() => setActiveScreen('feed')}
           >
             Live Activity
-            {events.length > 0 && <span className="nav-badge" style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)' }}>{events.length}</span>}
+            {events.length > 0 && (
+              <span
+                className="nav-badge"
+                style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)' }}
+              >
+                {events.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -231,7 +238,10 @@ export default function App(): ReactNode {
 
         {/* Connection status indicator */}
         <div className="status-badge">
-          <span className="pulse-dot" style={{ background: isStreaming ? 'var(--accent-emerald)' : 'var(--accent-amber)' }} />
+          <span
+            className="pulse-dot"
+            style={{ background: isStreaming ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}
+          />
           <span>{isStreaming ? '127.0.0.1:4321' : 'Reconnecting...'}</span>
         </div>
       </header>
@@ -242,30 +252,18 @@ export default function App(): ReactNode {
           <OverviewScreen stats={stats} onNavigate={(screen) => setActiveScreen(screen)} />
         )}
         {activeScreen === 'feed' && (
-          <LiveFeedScreen
-            events={events}
-            isStreaming={isStreaming}
-            onClear={() => setEvents([])}
-          />
+          <LiveFeedScreen events={events} isStreaming={isStreaming} onClear={() => setEvents([])} />
         )}
         {activeScreen === 'records' && (
-          <RecordBrowserScreen
-            records={records}
-            onFetchDetail={handleFetchRecordDetail}
-          />
+          <RecordBrowserScreen records={records} onFetchDetail={handleFetchRecordDetail} />
         )}
         {activeScreen === 'explain' && (
           <ExplainabilityScreen onFetchExplainability={handleFetchExplainability} />
         )}
         {activeScreen === 'approvals' && (
-          <ApprovalQueueScreen
-            approvals={approvals}
-            onDecision={handleDecision}
-          />
+          <ApprovalQueueScreen approvals={approvals} onDecision={handleDecision} />
         )}
-        {activeScreen === 'security' && (
-          <SecurityAuditScreen onFetchAudit={handleFetchAudit} />
-        )}
+        {activeScreen === 'security' && <SecurityAuditScreen onFetchAudit={handleFetchAudit} />}
         {activeScreen === 'benchmarks' && (
           <BenchmarkScreen onFetchBenchmarks={handleFetchBenchmarks} />
         )}

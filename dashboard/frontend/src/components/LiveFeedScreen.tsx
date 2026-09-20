@@ -38,17 +38,24 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
 
   return (
     <div>
-      <div className="screen-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div
+        className="screen-header"
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
+      >
         <div>
           <h1 className="screen-title">Live Activity Feed</h1>
           <p className="screen-subtitle">
-            Real-time SSE event pipeline streaming MCP tool calls, fingerprinting, and retrieval decisions.
+            Real-time SSE event pipeline streaming MCP tool calls, fingerprinting, and retrieval
+            decisions.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <div className="status-badge">
-            <span className="pulse-dot" style={{ background: isStreaming ? 'var(--accent-emerald)' : 'var(--accent-rose)' }} />
+            <span
+              className="pulse-dot"
+              style={{ background: isStreaming ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}
+            />
             {isStreaming ? 'SSE Active' : 'Disconnected'}
           </div>
 
@@ -101,7 +108,9 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
         {filteredEvents.length === 0 ? (
           <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
             <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No activity captured yet</p>
-            <p style={{ fontSize: '0.85rem' }}>MCP server calls and log writes to logs.jsonl will stream here in real time.</p>
+            <p style={{ fontSize: '0.85rem' }}>
+              MCP server calls and log writes to logs.jsonl will stream here in real time.
+            </p>
           </div>
         ) : (
           filteredEvents.map((evt, idx) => (
@@ -124,10 +133,14 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
                       : '3px solid var(--border-subtle)',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                   {getEventBadge(evt.event, evt.quarantined)}
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                  <span
+                    style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}
+                  >
                     {evt.msg ?? evt.event}
                   </span>
                 </div>
@@ -137,11 +150,21 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
               </div>
 
               {/* Event Metadata details */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 {evt.fingerprint && (
                   <div>
                     <span style={{ color: 'var(--text-muted)' }}>Fingerprint: </span>
-                    <span className="mono" style={{ color: 'var(--accent-cyan)' }}>{String(evt.fingerprint).slice(0, 18)}...</span>
+                    <span className="mono" style={{ color: 'var(--accent-cyan)' }}>
+                      {String(evt.fingerprint).slice(0, 18)}...
+                    </span>
                   </div>
                 )}
                 {evt.command && (

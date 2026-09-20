@@ -90,11 +90,13 @@ describe('Dashboard Process Isolation & Security Invariants', () => {
   it('bridge operations never write to MCP stdio channel', () => {
     // Intercept stdout to verify zero protocol pollution
     let interceptedStdout = '';
+    // Save original write reference; use arrow to avoid 'this' binding issues
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalStdoutWrite = process.stdout.write;
-    process.stdout.write = ((chunk: any) => {
+    process.stdout.write = ((chunk: string | Uint8Array) => {
       interceptedStdout += String(chunk);
       return true;
-    }) as any;
+    }) as typeof process.stdout.write;
 
     try {
       const storage = new BridgeStorage(memoryDir);
@@ -114,8 +116,9 @@ describe('Dashboard Process Isolation & Security Invariants', () => {
   it('bridge SQLite connection enforces read-only mode — write attempts fail', () => {
     const storage = new BridgeStorage(memoryDir);
     // Access internal DB to test write rejection
-    const readOnlyDb = (storage as any).getDb() as DatabaseSync;
+    const readOnlyDb = (storage as unknown as { getDb(): DatabaseSync | null }).getDb();
     expect(readOnlyDb).not.toBeNull();
+    if (!readOnlyDb) throw new Error('Expected readOnlyDb to be non-null');
 
     // Any attempt to write to SQLite MUST fail with SQLITE_READONLY error
     expect(() => {
@@ -146,7 +149,7 @@ describe('Dashboard Process Isolation & Security Invariants', () => {
     const storage = new BridgeStorage(memoryDir);
     const pending = storage.getPendingApprovals();
     expect(pending.length).toBe(1);
-    expect(pending[0].approvalId).toBe('appr_test_123');
+    expect(pending[0]?.approvalId).toBe('appr_test_123');
 
     // 2. Resolve approval
     const res = storage.resolveApproval('appr_test_123', 'approve', 'Operator approved via UI');
@@ -160,7 +163,12 @@ describe('Dashboard Process Isolation & Security Invariants', () => {
     const resolvedLines = resolvedContent.split('\n');
     expect(resolvedLines.length).toBe(1);
 
-    const resolvedRecord = JSON.parse(resolvedLines[0]);
+    const resolvedRecord = JSON.parse(resolvedLines[0] ?? '') as {
+      approvalId: string;
+      decision: string;
+      operatorNotes: string;
+      command: string;
+    };
     expect(resolvedRecord.approvalId).toBe('appr_test_123');
     expect(resolvedRecord.decision).toBe('approve');
     expect(resolvedRecord.operatorNotes).toBe('Operator approved via UI');

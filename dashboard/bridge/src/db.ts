@@ -82,18 +82,28 @@ export class BridgeStorage {
     const whereClause = repoId ? 'WHERE repository_id = ?' : '';
     const params = repoId ? [repoId] : [];
 
-    const totalRow = db.prepare(`SELECT COUNT(*) as count FROM records ${whereClause}`).get(...params) as { count: number } | undefined;
+    const totalRow = db
+      .prepare(`SELECT COUNT(*) as count FROM records ${whereClause}`)
+      .get(...params) as { count: number } | undefined;
     const total = totalRow?.count ?? 0;
 
-    const fpRow = db.prepare(`SELECT COUNT(DISTINCT fingerprint) as count FROM records ${whereClause}`).get(...params) as { count: number } | undefined;
+    const fpRow = db
+      .prepare(`SELECT COUNT(DISTINCT fingerprint) as count FROM records ${whereClause}`)
+      .get(...params) as { count: number } | undefined;
     const exactFingerprints = fpRow?.count ?? 0;
 
-    const quarRow = db.prepare(`SELECT COUNT(*) as count FROM records ${repoId ? 'WHERE repository_id = ? AND is_quarantined = 1' : 'WHERE is_quarantined = 1'}`).get(...params) as { count: number } | undefined;
+    const quarRow = db
+      .prepare(
+        `SELECT COUNT(*) as count FROM records ${repoId ? 'WHERE repository_id = ? AND is_quarantined = 1' : 'WHERE is_quarantined = 1'}`,
+      )
+      .get(...params) as { count: number } | undefined;
     const quarantinedCount = quarRow?.count ?? 0;
 
     // Read full records to compute Wilson bounds, verification stats, age distribution
-    const allRecordsRows = db.prepare(`SELECT created_at, data FROM records ${whereClause}`).all(...params) as Array<{ created_at: string; data: string }>;
-    
+    const allRecordsRows = db
+      .prepare(`SELECT created_at, data FROM records ${whereClause}`)
+      .all(...params) as Array<{ created_at: string; data: string }>;
+
     let verifiedCount = 0;
     let staleCount = 0;
     let wilsonSum = 0;
@@ -111,7 +121,10 @@ export class BridgeStorage {
       try {
         const parsed = JSON.parse(r.data);
         if (parsed.verification?.status === 'verified_success') verifiedCount++;
-        if (parsed.verification?.wilsonLowerBound !== null && parsed.verification?.wilsonLowerBound !== undefined) {
+        if (
+          parsed.verification?.wilsonLowerBound !== null &&
+          parsed.verification?.wilsonLowerBound !== undefined
+        ) {
           wilsonSum += parsed.verification.wilsonLowerBound;
           recordsWithWilson++;
         }
@@ -120,7 +133,12 @@ export class BridgeStorage {
       }
     }
 
-    const avgWilson = recordsWithWilson > 0 ? Number((wilsonSum / recordsWithWilson).toFixed(4)) : (verifiedCount > 0 ? Number((verifiedCount / total).toFixed(4)) : 0);
+    const avgWilson =
+      recordsWithWilson > 0
+        ? Number((wilsonSum / recordsWithWilson).toFixed(4))
+        : verifiedCount > 0
+          ? Number((verifiedCount / total).toFixed(4))
+          : 0;
 
     return {
       totalRecords: total,
@@ -185,9 +203,14 @@ export class BridgeStorage {
     }>;
 
     return rows.map((row) => {
-      let parsedData: any = {};
+      let parsedData: {
+        verification?: { wilsonLowerBound?: number; status?: string };
+        fix?: { explanation?: string; commands?: string[] };
+        poisoningFlag?: unknown;
+        provenance?: unknown;
+      } = {};
       try {
-        parsedData = JSON.parse(row.data);
+        parsedData = JSON.parse(row.data) as typeof parsedData;
       } catch {}
 
       return {
@@ -214,7 +237,9 @@ export class BridgeStorage {
     const db = this.getDb();
     if (!db) return null;
 
-    const row = db.prepare('SELECT data FROM records WHERE id = ?').get(id) as { data: string } | undefined;
+    const row = db.prepare('SELECT data FROM records WHERE id = ?').get(id) as
+      | { data: string }
+      | undefined;
     if (!row) return null;
 
     try {
@@ -257,7 +282,11 @@ export class BridgeStorage {
     return results;
   }
 
-  resolveApproval(approvalId: string, decision: 'approve' | 'deny', operatorNotes?: string): { success: boolean; resolvedAt: string } {
+  resolveApproval(
+    approvalId: string,
+    decision: 'approve' | 'deny',
+    operatorNotes?: string,
+  ): { success: boolean; resolvedAt: string } {
     const resolvedPath = path.join(this.memoryDir, 'approvals-resolved.jsonl');
     const pending = this.getPendingApprovals().find((a) => a.approvalId === approvalId);
 

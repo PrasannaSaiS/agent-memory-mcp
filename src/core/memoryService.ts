@@ -12,7 +12,6 @@ import type {
   FindFixOutput,
   FindFixMatch,
   MemoryStatsOutput,
-  PoisoningFlag,
 } from '../types.js';
 import {
   RecordFailureZodSchema,
@@ -22,12 +21,12 @@ import {
 import { redactSensitiveData } from './redact.js';
 import { normalizeOutput, CURRENT_NORMALIZER_VERSION } from './normalize.js';
 import { generateFingerprint } from './fingerprint.js';
+import { extractCommandFamily, calculateSimilarity, computeRecordAge } from './match.js';
 import {
-  extractCommandFamily,
-  calculateSimilarity,
-  computeRecordAge,
-} from './match.js';
-import { getLockfileHashes, checkRecordStaleness, calculateWilsonScoreLowerBound } from './staleness.js';
+  getLockfileHashes,
+  checkRecordStaleness,
+  calculateWilsonScoreLowerBound,
+} from './staleness.js';
 import { detectPoisoningInRecord } from './poisonDetector.js';
 import { CommandPolicyEngine } from '../policy/commandPolicy.js';
 import { createMemoryLogger, type MemoryLogger } from './logger.js';
@@ -42,7 +41,6 @@ export interface MemoryServiceOptions {
   repositoryId?: string;
   logger?: MemoryLogger;
 }
-
 
 export class MemoryService {
   private memoryDir: string;
@@ -152,8 +150,7 @@ export class MemoryService {
     const fingerprint = generateFingerprint(normalizedOutput);
 
     // 4. Check for prompt poisoning indicators across all untrusted text fields
-    const poisoningFlag =
-      detectPoisoningInRecord([input.explanation, input.output]).flag;
+    const poisoningFlag = detectPoisoningInRecord([input.explanation, input.output]).flag;
 
     const id = `rec_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
     const now = new Date().toISOString();
@@ -260,7 +257,11 @@ export class MemoryService {
       seenIds.add(exactRecord.id);
       const trustScore = this.computeProvenanceTrust(exactRecord, 1.0);
       const envelope = this.buildSanitizationEnvelope(exactRecord, trustScore);
-      const staleness = checkRecordStaleness(exactRecord, this.workspaceRoot, CURRENT_NORMALIZER_VERSION);
+      const staleness = checkRecordStaleness(
+        exactRecord,
+        this.workspaceRoot,
+        CURRENT_NORMALIZER_VERSION,
+      );
       matches.push({
         id: exactRecord.id,
         matchType: 'exact',
@@ -301,7 +302,11 @@ export class MemoryService {
         if (similarity >= input.threshold) {
           seenIds.add(candidate.id);
           const trustScore = this.computeProvenanceTrust(candidate, similarity);
-          const staleness = checkRecordStaleness(candidate, this.workspaceRoot, CURRENT_NORMALIZER_VERSION);
+          const staleness = checkRecordStaleness(
+            candidate,
+            this.workspaceRoot,
+            CURRENT_NORMALIZER_VERSION,
+          );
           const envelope = this.buildSanitizationEnvelope(candidate, trustScore);
 
           fuzzyCandidates.push({
@@ -364,17 +369,22 @@ export class MemoryService {
 
     const result = await this.commandPolicy.verifyFix(
       input.command,
-      input.dryRun ?? true,
+      Boolean(input.dryRun),
       input.recordId,
     );
 
     // If a live execution passed, update the record's verification metadata
-    if (!input.dryRun && (result.status === 'passed' || result.status === 'failed') && input.recordId) {
+    if (
+      !input.dryRun &&
+      (result.status === 'passed' || result.status === 'failed') &&
+      input.recordId
+    ) {
       const record = this.sqlite.findById(input.recordId);
       if (record) {
-        const prevSuccesses = record.verification.wilsonLowerBound !== null
-          ? Math.round((record.verification.wilsonLowerBound + 0.5) * 2) // rough back-estimate
-          : 0;
+        const prevSuccesses =
+          record.verification.wilsonLowerBound !== null
+            ? Math.round((record.verification.wilsonLowerBound + 0.5) * 2) // rough back-estimate
+            : 0;
         const prevTotal = prevSuccesses + (record.verification.status === 'failed' ? 1 : 0);
         const newSuccesses = prevSuccesses + (result.status === 'passed' ? 1 : 0);
         const newTotal = prevTotal + 1;
@@ -391,7 +401,12 @@ export class MemoryService {
         };
         this.sqlite.indexRecord(updated);
         this.logger.info(
-          { event: 'verify_fix_recorded', recordId: input.recordId, status: result.status, wilsonLowerBound },
+          {
+            event: 'verify_fix_recorded',
+            recordId: input.recordId,
+            status: result.status,
+            wilsonLowerBound,
+          },
           'Verification outcome persisted',
         );
       }

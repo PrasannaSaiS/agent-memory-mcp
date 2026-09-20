@@ -1,4 +1,4 @@
-﻿# agent-memory-mcp
+# agent-memory-mcp
 
 > Repository-scoped, git-synchronized error-fix memory MCP server.
 
@@ -61,6 +61,14 @@ agent-memory-mcp/
 - Retrieved records are **untrusted data** — wrapped in explicit delimiters before returning.
 - Secrets are redacted (pattern + entropy) before persistence.
 - The dashboard is a **separate process** and never shares stdin/stdout with the MCP server.
+
+## Documentation & Release Notes
+
+- [Release Checklist](file:///docs/release-checklist.md) — Pre-flight quality gates, coverage metrics, and validation matrix.
+- [SBOM & Dependency Audit](file:///docs/sbom-and-dependency-audit.md) — Software bill of materials and CVE-2025-49596 inspector review.
+- [System Limitations & Threat Boundaries](file:///docs/limitations.md) — Small-N statistical caveats, threat model boundaries, and OS concurrency semantics.
+- [Migration Guide](file:///docs/operations/migration-guide.md) — Schema upgrades, index rebuilding, and corrupted JSONL recovery.
+- [Evaluation & Benchmarks](file:///docs/evaluation/benchmark-results.md) — Benchmark protocol, baselines B0-B3, Wilcoxon signed-rank tests, and ablation analysis.
 
 ## License
 

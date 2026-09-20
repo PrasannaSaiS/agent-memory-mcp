@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "agent-memory-dashboard-bridge",
   "version": "0.1.0",
   "description": "Read-only bridge between agent-memory-mcp data files and the dashboard frontend. Uses node:sqlite (built-in, no native build required).",
@@ -12,7 +12,7 @@
     "dev": "tsc -p tsconfig.json --watch",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "format:check": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {

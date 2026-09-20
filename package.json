@@ -23,6 +23,9 @@
     "test:integration": "vitest run tests/integration",
     "test:security": "vitest run tests/security",
     "test:e2e": "vitest run tests/e2e",
+    "benchmark": "npm run build && node --experimental-vm-modules --input-type=module -e \"import('./dist-benchmark/scripts/benchmark/harness.js')\"",
+    "benchmark:build": "tsc -p tsconfig.benchmark.json",
+    "benchmark:run": "npx tsx scripts/benchmark/harness.ts",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "dependencies": {
@@ -32,6 +35,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "0.14.1",
     "@types/node": "22.15.21",
     "@types/uuid": "10.0.0",
     "@typescript-eslint/eslint-plugin": "8.35.0",

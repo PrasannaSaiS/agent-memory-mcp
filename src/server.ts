@@ -26,7 +26,12 @@ import {
   VERIFY_FIX_SCHEMA,
   LIST_MEMORY_STATS_SCHEMA,
 } from './schemas/toolSchemas.js';
-import type { RecordFailureInput, FindFixInput, MemoryStatsInput, VerifyFixInput } from './types.js';
+import type {
+  RecordFailureInput,
+  FindFixInput,
+  MemoryStatsInput,
+  VerifyFixInput,
+} from './types.js';
 
 const workspaceDir = process.env.AGENT_MEMORY_DIR ?? path.join(process.cwd(), '.agent-memory');
 const repositoryId = process.env.AGENT_MEMORY_REPO ?? path.basename(process.cwd());
@@ -167,7 +172,7 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+server.setRequestHandler(GetPromptRequestSchema, (request) => {
   if (request.params.name !== SAFE_WORKFLOW_PROMPT.name) {
     throw new Error(`Unknown prompt: ${request.params.name}`);
   }
@@ -197,13 +202,14 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+server.setRequestHandler(ReadResourceRequestSchema, (request) => {
   const { uri } = request.params;
   const match = /^memory:\/\/records\/([^/]+)$/.exec(uri);
   if (!match) {
     throw new Error(`Unsupported resource URI: ${uri}`);
   }
-  const id = match[1]!;
+  const id = match[1];
+  if (!id) throw new Error(`Malformed resource URI: ${uri}`);
   const record = service.getRecordById(id);
   if (!record) {
     throw new Error(`Record not found: ${id}`);

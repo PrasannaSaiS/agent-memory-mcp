@@ -201,10 +201,15 @@ export class SqliteIndex {
     `;
 
     const row = (
-      repositoryId
-        ? this.db.prepare(countSql).get(...params)
-        : this.db.prepare(countSql).get()
-    ) as { total: number; distinctFps: number; quarantined: number | null; verifiedCount: number | null } | undefined;
+      repositoryId ? this.db.prepare(countSql).get(...params) : this.db.prepare(countSql).get()
+    ) as
+      | {
+          total: number;
+          distinctFps: number;
+          quarantined: number | null;
+          verifiedCount: number | null;
+        }
+      | undefined;
 
     return {
       total: row?.total ?? 0,

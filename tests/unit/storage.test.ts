@@ -77,4 +77,72 @@ describe('Storage and Indexing', () => {
     expect(found?.command).toBe('npm test');
     sqlite.close();
   });
+
+  it('readAll returns empty array when file does not exist', async () => {
+    const nonExistentPath = path.join(tmpDir, 'nonexistent', 'records.jsonl');
+    const jsonl = new JsonlStorage(nonExistentPath);
+    const records = await jsonl.readAll();
+    expect(records).toEqual([]);
+  });
+
+  it('readAll retrieves all valid records from JSONL', async () => {
+    const jsonl = new JsonlStorage(jsonlPath);
+    await jsonl.append(mockRecord);
+    const secondRecord = { ...mockRecord, id: 'rec_456' };
+    await jsonl.append(secondRecord);
+
+    const records = await jsonl.readAll();
+    expect(records.length).toBe(2);
+    expect(records[0]?.id).toBe('rec_123');
+    expect(records[1]?.id).toBe('rec_456');
+  });
+
+  it('readAll handles corrupted JSONL lines by skipping and warning on stderr', async () => {
+    const jsonl = new JsonlStorage(jsonlPath);
+    await jsonl.append(mockRecord);
+
+    // Corrupt line in between
+    fs.appendFileSync(jsonlPath, '{"broken json line without closing bracket\n', 'utf8');
+
+    const thirdRecord = { ...mockRecord, id: 'rec_789' };
+    await jsonl.append(thirdRecord);
+
+    let stderrOutput = '';
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const origStderrWrite = process.stderr.write;
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrOutput += String(chunk);
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const records = await jsonl.readAll();
+      expect(records.length).toBe(2);
+      expect(records[0]?.id).toBe('rec_123');
+      expect(records[1]?.id).toBe('rec_789');
+      expect(stderrOutput).toContain('jsonl_corrupted_line');
+    } finally {
+      process.stderr.write = origStderrWrite;
+    }
+  });
+
+  it('handles concurrent writers without data loss or corruption (Windows/POSIX)', async () => {
+    const jsonl = new JsonlStorage(jsonlPath);
+    const writeCount = 25;
+    const promises = Array.from({ length: writeCount }, (_, i) => {
+      const rec: MemoryRecord = {
+        ...mockRecord,
+        id: 'rec_concurrent_' + String(i),
+        fingerprint: 'sha256:fingerprint_' + String(i),
+      };
+      return jsonl.append(rec);
+    });
+
+    await Promise.all(promises);
+
+    const records = await jsonl.readAll();
+    expect(records.length).toBe(writeCount);
+    const ids = new Set(records.map((r) => r.id));
+    expect(ids.size).toBe(writeCount);
+  });
 });
