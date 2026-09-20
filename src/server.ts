@@ -33,8 +33,140 @@ import type {
   VerifyFixInput,
 } from './types.js';
 
-const workspaceDir = process.env.AGENT_MEMORY_DIR ?? path.join(process.cwd(), '.agent-memory');
-const repositoryId = process.env.AGENT_MEMORY_REPO ?? path.basename(process.cwd());
+import fs from 'node:fs';
+
+export interface StartupConfig {
+  memoryDir: string;
+  repositoryId: string;
+}
+
+export interface StartupValidationError {
+  error: 'startup_validation_failed' | 'unsupported_node_version';
+  field?: 'AGENT_MEMORY_DIR' | 'AGENT_MEMORY_REPO';
+  required?: string;
+  actual?: string;
+  message: string;
+  timestamp: string;
+}
+
+export function checkNodeVersion(
+  versionString = process.versions.node,
+  opts?: { exitOnError?: boolean; stderrWrite?: (msg: string) => void },
+): boolean {
+  const exitOnError = opts?.exitOnError ?? false;
+  const stderrWrite = opts?.stderrWrite ?? ((msg: string) => process.stderr.write(msg));
+
+  const parts = versionString.split('.').map(Number);
+  const major = parts[0] ?? 0;
+  const minor = parts[1] ?? 0;
+
+  if (major < 22 || (major === 22 && minor < 5)) {
+    const errPayload: StartupValidationError = {
+      error: 'unsupported_node_version',
+      required: '>=22.5.0',
+      actual: versionString,
+      message: `agent-memory-mcp requires Node.js >= 22.5.0 (for built-in node:sqlite DatabaseSync). Current runtime is ${versionString}.`,
+      timestamp: new Date().toISOString(),
+    };
+    stderrWrite(JSON.stringify(errPayload) + '\n');
+    if (exitOnError) {
+      process.exit(1);
+    }
+    throw new Error(errPayload.message);
+  }
+  return true;
+}
+
+export function validateStartupEnvironment(
+  env: NodeJS.ProcessEnv = process.env,
+  opts?: { exitOnError?: boolean; stderrWrite?: (msg: string) => void; nodeVersion?: string },
+): StartupConfig {
+  const exitOnError = opts?.exitOnError ?? false;
+  const stderrWrite = opts?.stderrWrite ?? ((msg: string) => process.stderr.write(msg));
+
+  // 0. Validate Node version
+  checkNodeVersion(opts?.nodeVersion ?? process.versions.node, opts);
+
+  function fail(field: 'AGENT_MEMORY_DIR' | 'AGENT_MEMORY_REPO', message: string): never {
+    const errPayload: StartupValidationError = {
+      error: 'startup_validation_failed',
+      field,
+      message,
+      timestamp: new Date().toISOString(),
+    };
+    stderrWrite(JSON.stringify(errPayload) + '\n');
+    if (exitOnError) {
+      process.exit(1);
+    }
+    throw new Error(`[startup_validation_failed] ${field}: ${message}`);
+  }
+
+  // 1. Validate AGENT_MEMORY_REPO
+  const repoRaw = env.AGENT_MEMORY_REPO;
+  let repositoryId = repoRaw !== undefined ? repoRaw.trim() : path.basename(process.cwd()).trim();
+  if (repoRaw !== undefined && repoRaw.trim().length === 0) {
+    fail('AGENT_MEMORY_REPO', 'AGENT_MEMORY_REPO is set but empty. Must be a non-empty string.');
+  }
+  if (!repositoryId || repositoryId.length === 0) {
+    fail(
+      'AGENT_MEMORY_REPO',
+      'Could not infer repository identifier from process.cwd() and AGENT_MEMORY_REPO is not set.',
+    );
+  }
+
+  // 2. Validate AGENT_MEMORY_DIR
+  const memDirRaw = env.AGENT_MEMORY_DIR;
+  if (memDirRaw !== undefined && memDirRaw.trim().length === 0) {
+    fail('AGENT_MEMORY_DIR', 'AGENT_MEMORY_DIR is set but empty. Must be a non-empty string.');
+  }
+
+  const memoryDir = memDirRaw ? path.resolve(memDirRaw.trim()) : path.join(process.cwd(), '.agent-memory');
+
+  if (fs.existsSync(memoryDir)) {
+    try {
+      const stat = fs.statSync(memoryDir);
+      if (!stat.isDirectory()) {
+        fail('AGENT_MEMORY_DIR', `AGENT_MEMORY_DIR path exists but is not a directory: ${memoryDir}`);
+      }
+    } catch (e: any) {
+      if (e.message?.startsWith('[startup_validation_failed]')) throw e;
+      fail('AGENT_MEMORY_DIR', `Failed to inspect AGENT_MEMORY_DIR: ${e.message}`);
+    }
+  } else {
+    // Check parent directory
+    const parentDir = path.dirname(memoryDir);
+    if (!fs.existsSync(parentDir)) {
+      fail('AGENT_MEMORY_DIR', `Parent directory for AGENT_MEMORY_DIR does not exist: ${parentDir}`);
+    }
+    try {
+      const parentStat = fs.statSync(parentDir);
+      if (!parentStat.isDirectory()) {
+        fail('AGENT_MEMORY_DIR', `Parent path for AGENT_MEMORY_DIR is not a directory: ${parentDir}`);
+      }
+    } catch (e: any) {
+      if (e.message?.startsWith('[startup_validation_failed]')) throw e;
+      fail('AGENT_MEMORY_DIR', `Failed to inspect parent directory: ${e.message}`);
+    }
+  }
+
+  return {
+    memoryDir,
+    repositoryId,
+  };
+}
+
+let startupConfig: StartupConfig;
+try {
+  startupConfig = validateStartupEnvironment(process.env, { exitOnError: false });
+} catch {
+  startupConfig = {
+    memoryDir: path.resolve(process.env.AGENT_MEMORY_DIR ?? path.join(process.cwd(), '.agent-memory')),
+    repositoryId: ((process.env.AGENT_MEMORY_REPO ?? path.basename(process.cwd())) || 'unknown').trim(),
+  };
+}
+
+const workspaceDir = startupConfig.memoryDir;
+const repositoryId = startupConfig.repositoryId;
 
 const logger = createMemoryLogger({
   logFilePath: path.join(workspaceDir, 'logs.jsonl'),
@@ -291,7 +423,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+let isShuttingDown = false;
+
+export async function shutdown(signal = 'SIGTERM'): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  logger.info({ event: 'server_shutdown_start', signal }, `Received ${signal}, initiating graceful shutdown`);
+  try {
+    service.close();
+  } catch (err) {
+    logger.error({ event: 'shutdown_error', error: String(err) }, 'Error during storage shutdown');
+  }
+  logger.info({ event: 'server_shutdown_complete' }, 'agent-memory-mcp server shutdown complete');
+}
+
 export async function startServer(): Promise<void> {
+  validateStartupEnvironment(process.env, { exitOnError: true });
+
+  const onSignal = (signal: string) => {
+    shutdown(signal)
+      .then(() => process.exit(0))
+      .catch(() => process.exit(1));
+  };
+
+  process.once('SIGINT', () => onSignal('SIGINT'));
+  process.once('SIGTERM', () => onSignal('SIGTERM'));
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info(

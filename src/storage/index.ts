@@ -84,6 +84,23 @@ export class SqliteIndex {
     }
   }
 
+  /**
+   * Rebuilds the SQLite index transactionally from an array of MemoryRecords.
+   */
+  rebuildIndex(records: MemoryRecord[]): void {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      this.db.exec('DELETE FROM records; DELETE FROM records_fts;');
+      for (const record of records) {
+        this.indexRecord(record);
+      }
+      this.db.exec('COMMIT');
+    } catch (e) {
+      this.db.exec('ROLLBACK');
+      throw e;
+    }
+  }
+
   findByFingerprint(
     fingerprint: string,
     repositoryId?: string,

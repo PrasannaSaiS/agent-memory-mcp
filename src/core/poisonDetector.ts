@@ -61,6 +61,44 @@ const ZERO_WIDTH_REGEX = /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u
 const HOMOGLYPH_REGEX =
   /[\u0430\u0435\u043E\u0440\u0441\u0443\u0445\u0456\u0458\u04CF\u03BF\u03C1\u03B1\u03B5\u03B9\u03BD\u03C5\u03C7\uFF01-\uFF5E]/;
 
+/** Map of visually confusable Cyrillic and Greek characters to ASCII Latin equivalents. */
+export const HOMOGLYPH_MAP: Record<string, string> = {
+  '\u0430': 'a', // Cyrillic small a
+  '\u0435': 'e', // Cyrillic small ie
+  '\u043E': 'o', // Cyrillic small o
+  '\u0440': 'p', // Cyrillic small er
+  '\u0441': 'c', // Cyrillic small es
+  '\u0443': 'y', // Cyrillic small u
+  '\u0445': 'x', // Cyrillic small ha
+  '\u0456': 'i', // Cyrillic small byelorussian-ukrainian i
+  '\u0458': 'j', // Cyrillic small je
+  '\u03BF': 'o', // Greek small omicron
+  '\u03C1': 'p', // Greek small rho
+  '\u03B1': 'a', // Greek small alpha
+  '\u03B5': 'e', // Greek small epsilon
+  '\u03B9': 'i', // Greek small iota
+  '\u03BD': 'v', // Greek small nu
+  '\u03C5': 'u', // Greek small upsilon
+  '\u03C7': 'x', // Greek small chi
+};
+
+/**
+ * Strips zero-width characters, applies Unicode NFKC, and maps homoglyphs to ASCII.
+ */
+export function canonicalizeHomoglyphs(text: string): string {
+  if (!text) return '';
+  // 1. Strip zero-width and invisible characters
+  let cleaned = text.replace(/[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\uFEFF\u00AD]/g, '');
+  // 2. Unicode NFKC normalization (converts fullwidth ASCII to standard ASCII)
+  cleaned = cleaned.normalize('NFKC');
+  // 3. Map Cyrillic / Greek confusable glyphs
+  let mapped = '';
+  for (const char of cleaned) {
+    mapped += HOMOGLYPH_MAP[char] ?? char;
+  }
+  return mapped;
+}
+
 const IMPERATIVE_VERBS = [
   'run',
   'execute',

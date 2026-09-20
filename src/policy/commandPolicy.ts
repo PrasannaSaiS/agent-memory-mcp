@@ -125,16 +125,30 @@ export class CommandPolicyEngine {
       };
     }
 
-    // 4. Path traversal checks on all arguments
+    // 4. Path containment checks on all arguments
     for (const arg of args) {
-      if (arg.includes('..')) {
-        const resolved = path.resolve(this.workspaceRoot, arg);
-        if (!resolved.startsWith(this.workspaceRoot)) {
-          return {
-            allowed: false,
-            reason: `Path traversal attempt detected in argument: '${arg}'`,
-            risk: 'high',
-          };
+      const candidates = arg.includes('=') ? [arg.slice(arg.indexOf('=') + 1)] : [arg];
+      for (const cand of candidates) {
+        if (cand.startsWith('http://') || cand.startsWith('https://')) continue;
+        if (cand.startsWith('-') && !cand.includes('/') && !cand.includes('\\')) continue;
+
+        const isPathLike =
+          cand.includes('/') ||
+          cand.includes('\\') ||
+          cand.includes('..') ||
+          path.isAbsolute(cand) ||
+          /^[a-zA-Z]:[\\/]/.test(cand);
+
+        if (isPathLike) {
+          const resolved = path.resolve(this.workspaceRoot, cand);
+          const relative = path.relative(this.workspaceRoot, resolved);
+          if (relative.startsWith('..') || path.isAbsolute(relative)) {
+            return {
+              allowed: false,
+              reason: `Workspace escape attempt detected in argument: '${arg}' (resolves outside workspace root)`,
+              risk: 'high',
+            };
+          }
         }
       }
     }
@@ -153,6 +167,7 @@ export class CommandPolicyEngine {
 
   /**
    * Checks if an execution has been explicitly approved in .agent-memory/approvals-resolved.jsonl.
+   * Hardened against malformed JSON lines and approval ID hijacking.
    */
   hasResolvedApproval(commandString: string, approvalId?: string): boolean {
     const resolvedPath = path.join(this.memoryDir, 'approvals-resolved.jsonl');
@@ -164,14 +179,31 @@ export class CommandPolicyEngine {
       const content = fs.readFileSync(resolvedPath, 'utf8');
       const lines = content.split('\n').filter((l) => l.trim().length > 0);
       for (const line of lines) {
-        const record = JSON.parse(line) as ApprovalRecord;
-        if (record.decision === 'approve') {
-          if (approvalId && record.approvalId === approvalId) {
-            return true;
+        try {
+          const record = JSON.parse(line) as Partial<ApprovalRecord>;
+          if (
+            !record ||
+            typeof record !== 'object' ||
+            typeof record.command !== 'string' ||
+            typeof record.approvalId !== 'string' ||
+            (record.decision !== 'approve' && record.decision !== 'reject')
+          ) {
+            continue; // Skip malformed lines
           }
-          if (record.command.trim() === commandString.trim()) {
-            return true;
+
+          if (record.decision === 'approve') {
+            const commandMatches = record.command.trim() === commandString.trim();
+            if (approvalId) {
+              if (record.approvalId === approvalId && commandMatches) {
+                return true;
+              }
+            } else if (commandMatches) {
+              return true;
+            }
           }
+        } catch {
+          // Skip corrupted line and continue evaluating
+          continue;
         }
       }
     } catch {

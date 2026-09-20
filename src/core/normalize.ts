@@ -40,7 +40,14 @@ export function normalizeOutput(text: string): string {
   normalized = normalized.replace(TMP_DIR_WIN_REGEX, '<TMP_DIR>');
   normalized = normalized.replace(TMP_DIR_UNIX_REGEX, '<TMP_DIR>');
 
-  // 7. Whitespace trimming & consistent newlines
+  // 7. Path separator normalization: normalize Windows backslashes in paths to POSIX forward slashes
+  normalized = normalized.replace(/([a-zA-Z]):\\/g, '$1:/');
+  normalized = normalized.replace(/(\.{1,2})\\/g, '$1/');
+  while (/([a-zA-Z0-9_.~-]+)\\([a-zA-Z0-9_.~-]+)/.test(normalized)) {
+    normalized = normalized.replace(/([a-zA-Z0-9_.~-]+)\\([a-zA-Z0-9_.~-]+)/g, '$1/$2');
+  }
+
+  // 8. Whitespace trimming & consistent newlines
   normalized = normalized.replace(/\r\n/g, '\n').trim();
 
   return normalized;

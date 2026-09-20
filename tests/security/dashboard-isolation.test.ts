@@ -73,6 +73,8 @@ describe('Dashboard Process Isolation & Security Invariants', () => {
       'execFile(',
       'execFileSync(',
       'fork(',
+      'commandPolicy',
+      'src/policy',
     ];
 
     for (const file of files) {
