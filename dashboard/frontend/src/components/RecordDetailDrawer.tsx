@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { FullMemoryRecord } from '../types.js';
 
 interface Props {
@@ -7,152 +7,180 @@ interface Props {
 }
 
 export function RecordDetailDrawer({ record, onClose }: Props): ReactNode {
+  const [outputTab, setOutputTab] = useState<'normalized' | 'raw'>('normalized');
+
   if (!record) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="drawer" onClick={(e) => e.stopPropagation()}>
+      <div className="drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        {/* Drawer Header */}
         <div className="drawer-header">
           <div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.6rem',
-                marginBottom: '0.35rem',
-              }}
-            >
-              <span
-                className="mono"
-                style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-cyan)' }}
-              >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.25rem' }}>
+              <span className="mono" style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
                 {record.id}
               </span>
               {record.isQuarantined && <span className="badge rose">QUARANTINED</span>}
-              <span className="badge purple">{record.commandFamily}</span>
+              {record.verificationStatus === 'verified_success' && (
+                <span className="badge emerald">VERIFIED</span>
+              )}
+              <span className="badge violet">{record.commandFamily}</span>
             </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Created: {new Date(record.createdAt).toLocaleString()}
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+              Captured: {new Date(record.createdAt).toLocaleString()} • Normalizer v{record.normalizerVersion}
             </div>
           </div>
-          <button className="btn btn-outline" onClick={onClose}>
-            Close ✕
+
+          <button className="btn btn-outline" onClick={onClose} aria-label="Close record detail drawer">
+            ✕ Close
           </button>
         </div>
 
+        {/* Drawer Body */}
         <div className="drawer-body">
-          {/* Quarantine Alert if flagged */}
+          {/* Security Quarantine Alert Banner */}
           {record.poisoningFlag && (
             <div
               style={{
-                background: 'rgba(244, 63, 94, 0.1)',
-                border: '1px solid rgba(244, 63, 94, 0.3)',
-                borderRadius: '8px',
+                background: 'var(--status-danger-bg)',
+                border: '1px solid var(--status-danger-bd)',
+                borderRadius: '6px',
                 padding: '1rem',
-                marginBottom: '1.5rem',
+                marginBottom: '1.35rem',
               }}
             >
-              <div
-                style={{ fontWeight: 600, color: 'var(--accent-rose)', marginBottom: '0.35rem' }}
-              >
-                ⚠ Security & Poisoning Quarantine Flag
+              <div style={{ fontWeight: 600, color: 'var(--status-danger)', marginBottom: '0.25rem' }}>
+                ⚠ Security & Adversarial Injection Quarantine Flag
               </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '0.84rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
                 Reason: {record.poisoningFlag.reason}
               </div>
-              <div
-                style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}
-              >
-                Raised at: {new Date(record.poisoningFlag.raisedAt).toLocaleString()} • Status:{' '}
-                {record.poisoningFlag.status}
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Flagged at: {new Date(record.poisoningFlag.raisedAt).toLocaleString()} • Status:{' '}
+                <span className="badge rose" style={{ fontSize: '0.68rem' }}>
+                  {record.poisoningFlag.status.toUpperCase()}
+                </span>
               </div>
             </div>
           )}
 
-          {/* Fix & Explanation */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3
-              style={{
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: 'var(--text-primary)',
-              }}
-            >
-              Proposed Fix & Rationale
+          {/* Supersedes Chain: Rendered as an actual visual timeline/chain */}
+          <div style={{ marginBottom: '1.35rem' }}>
+            <h3 style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+              Supersedes Chain & Historical Evolution
+            </h3>
+
+            <div className="supersedes-timeline">
+              {record.supersedes ? (
+                <>
+                  <div className="timeline-node">
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>PREDECESSOR</span>
+                    <span className="mono" style={{ color: 'var(--status-warning)', fontWeight: 600, fontSize: '0.82rem' }}>
+                      {record.supersedes}
+                    </span>
+                    <span className="badge amber" style={{ fontSize: '0.65rem' }}>
+                      STALE LOCKFILE
+                    </span>
+                  </div>
+
+                  <div className="timeline-arrow">
+                    <span>replaces ──▶</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--accent-cyan)' }}>lockfile drift</span>
+                  </div>
+
+                  <div className="timeline-node" style={{ borderColor: 'var(--accent-cyan)', background: 'var(--accent-cyan-bg)' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)' }}>ACTIVE FIX</span>
+                    <span className="mono" style={{ color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '0.82rem' }}>
+                      {record.id}
+                    </span>
+                    <span className="badge emerald" style={{ fontSize: '0.65rem' }}>
+                      CURRENT REVISION
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div className="timeline-node" style={{ borderColor: 'var(--status-success-bd)' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>ORIGIN MEMORY</span>
+                    <span className="mono" style={{ color: 'var(--status-success)', fontWeight: 600, fontSize: '0.82rem' }}>
+                      {record.id}
+                    </span>
+                    <span className="badge emerald" style={{ fontSize: '0.65rem' }}>
+                      GENESIS RECORD
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Root memory record (no predecessor in supersedes chain).
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Proposed Fix & Rationale */}
+          <div style={{ marginBottom: '1.35rem' }}>
+            <h3 style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.45rem', color: 'var(--text-primary)' }}>
+              Proposed Fix Rationale & Execution Plan
             </h3>
             <div
               style={{
-                background: 'var(--bg-card)',
-                padding: '1rem',
-                borderRadius: '8px',
+                background: 'var(--bg-subtle)',
+                padding: '0.95rem',
+                borderRadius: '6px',
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              <p
-                style={{
-                  fontSize: '0.9rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '0.75rem',
-                }}
-              >
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '0.65rem', lineHeight: 1.45 }}>
                 {record.fix?.explanation || record.fixExplanation}
               </p>
-              <div
-                style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}
-              >
-                Commands:
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600 }}>
+                Executable Repair Commands:
               </div>
               {(record.fix?.commands || record.fixCommands || []).map((cmd, i) => (
-                <div key={i} className="code-block mono" style={{ margin: '0.25rem 0' }}>
-                  {cmd}
+                <div key={i} className="code-block mono" style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
+                  $ {cmd}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Verification & Wilson Score */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3
-              style={{
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: 'var(--text-primary)',
-              }}
-            >
-              Verification Telemetry
+          {/* Verification Telemetry & Confidence Bounds */}
+          <div style={{ marginBottom: '1.35rem' }}>
+            <h3 style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.45rem', color: 'var(--text-primary)' }}>
+              Statistical Verification Telemetry
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.85rem' }}>
               <div
                 style={{
-                  background: 'var(--bg-card)',
+                  background: 'var(--bg-subtle)',
                   padding: '0.85rem',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Status</div>
-                <div
-                  style={{ fontWeight: 600, color: 'var(--accent-emerald)', marginTop: '0.25rem' }}
-                >
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Verification Status
+                </div>
+                <div style={{ fontWeight: 600, color: 'var(--status-success)', marginTop: '0.2rem', fontSize: '0.9rem' }}>
                   {record.verification?.status ?? record.verificationStatus}
                 </div>
               </div>
+
               <div
                 style={{
-                  background: 'var(--bg-card)',
+                  background: 'var(--bg-subtle)',
                   padding: '0.85rem',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                   Wilson Lower Bound (95% CI)
                 </div>
-                <div
-                  style={{ fontWeight: 600, color: 'var(--accent-purple)', marginTop: '0.25rem' }}
-                >
+                <div className="mono" style={{ fontWeight: 700, color: 'var(--accent-violet)', marginTop: '0.2rem', fontSize: '0.95rem' }}>
                   {record.wilsonLowerBound !== null && record.wilsonLowerBound !== undefined
                     ? `${(record.wilsonLowerBound * 100).toFixed(1)}%`
                     : 'N/A (unverified)'}
@@ -161,139 +189,79 @@ export function RecordDetailDrawer({ record, onClose }: Props): ReactNode {
             </div>
           </div>
 
-          {/* Fingerprints & Hashes */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3
+          {/* Provenance & Git Context */}
+          <div style={{ marginBottom: '1.35rem' }}>
+            <h3 style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.45rem', color: 'var(--text-primary)' }}>
+              Provenance & Git Environment Context
+            </h3>
+
+            <div
               style={{
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: 'var(--text-primary)',
+                background: 'var(--bg-subtle)',
+                padding: '0.85rem',
+                borderRadius: '6px',
+                border: '1px solid var(--border-subtle)',
+                fontSize: '0.8rem',
               }}
             >
-              Deterministic Signatures
-            </h3>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Fingerprint (SHA-256):
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Git Commit:</span>
+                <span className="mono" style={{ color: 'var(--text-primary)' }}>
+                  {record.provenance?.gitCommit || 'N/A'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Branch:</span>
+                <span className="mono" style={{ color: 'var(--text-primary)' }}>
+                  {record.provenance?.gitBranch || 'N/A'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Captured By:</span>
+                <span style={{ color: 'var(--text-primary)' }}>{record.provenance?.gitAuthor || 'agent-memory-mcp'}</span>
+              </div>
             </div>
-            <div className="code-block mono" style={{ color: 'var(--accent-cyan)' }}>
+          </div>
+
+          {/* Deterministic Fingerprint */}
+          <div style={{ marginBottom: '1.35rem' }}>
+            <h3 style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.45rem', color: 'var(--text-primary)' }}>
+              Deterministic SHA-256 Fingerprint
+            </h3>
+            <div className="code-block mono" style={{ color: 'var(--accent-cyan)', fontSize: '0.78rem' }}>
               {record.fingerprint}
             </div>
-
-            {record.environment?.lockfileHashes && (
-              <>
-                <div
-                  style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}
-                >
-                  Lockfile Hashes:
-                </div>
-                <pre className="code-block mono">
-                  {JSON.stringify(record.environment.lockfileHashes, null, 2)}
-                </pre>
-              </>
-            )}
           </div>
 
-          {/* Provenance Details */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3
-              style={{
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: 'var(--text-primary)',
-              }}
-            >
-              Provenance & Git Context
-            </h3>
-            <div
-              style={{
-                background: 'var(--bg-card)',
-                padding: '0.85rem',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                fontSize: '0.85rem',
-              }}
-            >
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>Commit: </span>
-                <span className="mono">{record.provenance?.gitCommit || 'N/A'}</span>
-              </div>
-              <div style={{ marginTop: '0.25rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Branch: </span>
-                <span className="mono">{record.provenance?.gitBranch || 'N/A'}</span>
-              </div>
-              <div style={{ marginTop: '0.25rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Author: </span>
-                <span>{record.provenance?.gitAuthor || 'N/A'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Supersedes Chain Linked List */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3
-              style={{
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: 'var(--text-primary)',
-              }}
-            >
-              Supersedes Chain
-            </h3>
-            <div
-              style={{
-                background: 'var(--bg-card)',
-                padding: '1rem',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                fontSize: '0.85rem',
-              }}
-            >
-              {record.supersedes ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span className="mono" style={{ color: 'var(--accent-cyan)' }}>
-                    {record.id}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)' }}>── replaces ──▶</span>
-                  <span className="mono" style={{ color: 'var(--accent-amber)' }}>
-                    {record.supersedes}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    (lockfile updated)
-                  </span>
-                </div>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Root record (no predecessor in supersedes chain)
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Normalized vs Raw Output */}
+          {/* Normalized vs Raw Redacted Output Tabbed View */}
           <div>
-            <h3
-              style={{
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: 'var(--text-primary)',
-              }}
-            >
-              Normalized vs. Redacted Raw Output
-            </h3>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Normalized Output:</div>
-            <pre className="code-block" style={{ maxHeight: '180px' }}>
-              {record.normalizedOutput || 'Normalized output unavailable in summary'}
-            </pre>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Error Output Comparison
+              </h3>
 
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-              Raw Redacted Output:
+              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                <button
+                  className={`btn ${outputTab === 'normalized' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.72rem' }}
+                  onClick={() => setOutputTab('normalized')}
+                >
+                  Normalized Output
+                </button>
+                <button
+                  className={`btn ${outputTab === 'raw' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.72rem' }}
+                  onClick={() => setOutputTab('raw')}
+                >
+                  Raw (Redacted)
+                </button>
+              </div>
             </div>
-            <pre className="code-block" style={{ maxHeight: '180px' }}>
-              {record.rawOutputRedacted || 'Raw output unavailable in summary'}
+
+            <pre className="code-block" style={{ maxHeight: '180px', fontSize: '0.76rem' }}>
+              {outputTab === 'normalized'
+                ? record.normalizedOutput || 'Normalized output unavailable in summary'
+                : record.rawOutputRedacted || 'Raw redacted output unavailable in summary'}
             </pre>
           </div>
         </div>

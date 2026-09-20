@@ -4,10 +4,11 @@ import { RecordDetailDrawer } from './RecordDetailDrawer.js';
 
 interface Props {
   records: MemoryRecordSummary[];
+  isLoading?: boolean;
   onFetchDetail: (id: string) => Promise<FullMemoryRecord | null>;
 }
 
-export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNode {
+export function RecordBrowserScreen({ records, isLoading, onFetchDetail }: Props): ReactNode {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [familyFilter, setFamilyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -41,41 +42,50 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
   return (
     <div>
       <div className="screen-header">
-        <h1 className="screen-title">Record Browser & Detail</h1>
-        <p className="screen-subtitle">
-          Searchable catalog of error-fix memories, fingerprints, provenance metadata, and
-          supersedes history.
-        </p>
+        <div className="screen-title-row">
+          <div>
+            <h1 className="screen-title">Record Browser & Detail</h1>
+            <p className="screen-subtitle">
+              Searchable catalog of error-fix memories, deterministic fingerprints, provenance metadata, and supersedes history.
+            </p>
+          </div>
+          <div className="badge gray">
+            Catalog: {records.length} Records ({filtered.length} matching)
+          </div>
+        </div>
       </div>
 
-      {/* Filter Controls Bar */}
+      {/* Filter Toolbar */}
       <div
         className="panel"
         style={{
-          padding: '1.25rem',
+          padding: '1rem 1.25rem',
           display: 'flex',
           flexWrap: 'wrap',
-          gap: '1rem',
+          gap: '0.85rem',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', gap: '1rem', flex: 1, minWidth: '300px' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
           <input
+            id="record-search-input"
             type="text"
             className="input"
-            placeholder="Search commands, error text, fingerprints, or explanations..."
+            placeholder="Search commands, fingerprints, or explanations... (Press '/' to focus)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ width: '100%' }}
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
+            id="family-filter-select"
             className="input"
             value={familyFilter}
             onChange={(e) => setFamilyFilter(e.target.value)}
+            aria-label="Filter by command family"
           >
             <option value="all">All Command Families</option>
             {commandFamilies
@@ -88,76 +98,129 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
           </select>
 
           <select
+            id="status-filter-select"
             className="input"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter by record status"
           >
-            <option value="all">All Statuses</option>
+            <option value="all">All Verification Statuses</option>
             <option value="clean">Clean (Unquarantined)</option>
             <option value="quarantined">Quarantined (Flagged)</option>
-            <option value="verified">Verified Only</option>
+            <option value="verified">Verified Only (Passing)</option>
           </select>
+
+          {(searchTerm || familyFilter !== 'all' || statusFilter !== 'all') && (
+            <button
+              className="btn btn-outline"
+              style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
+              onClick={() => {
+                setSearchTerm('');
+                setFamilyFilter('all');
+                setStatusFilter('all');
+              }}
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Table Results */}
+      {/* Tabular Data Catalog */}
       <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="table-container">
           <table>
             <thead>
               <tr>
                 <th>Record ID</th>
-                <th>Command</th>
+                <th>Target Command</th>
                 <th>Family</th>
                 <th>Fingerprint (SHA-256)</th>
-                <th>Confidence / Wilson</th>
-                <th>Status</th>
+                <th>Wilson Lower Bound</th>
+                <th>Integrity Status</th>
                 <th>Created</th>
-                <th>Action</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx}>
+                    <td><div className="skeleton-box" style={{ width: '80px', height: '18px' }} /></td>
+                    <td><div className="skeleton-box" style={{ width: '180px', height: '18px' }} /></td>
+                    <td><div className="skeleton-box" style={{ width: '60px', height: '18px' }} /></td>
+                    <td><div className="skeleton-box" style={{ width: '120px', height: '18px' }} /></td>
+                    <td><div className="skeleton-box" style={{ width: '70px', height: '18px' }} /></td>
+                    <td><div className="skeleton-box" style={{ width: '85px', height: '18px' }} /></td>
+                    <td><div className="skeleton-box" style={{ width: '80px', height: '18px' }} /></td>
+                    <td style={{ textAlign: 'right' }}><div className="skeleton-box" style={{ width: '60px', height: '24px', marginLeft: 'auto' }} /></td>
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}
-                  >
-                    No matching memory records found.
+                  <td colSpan={8} style={{ padding: '3.5rem 1.5rem' }}>
+                    <div className="empty-state">
+                      <div className="empty-state-icon">🔍</div>
+                      <h2 className="empty-state-title">No Matching Memory Records</h2>
+                      <p className="empty-state-desc">
+                        {records.length === 0
+                          ? 'The memory database is currently empty. Run test executions or benchmarks to seed records.'
+                          : 'No records match your active search terms or filter selection.'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filtered.map((r) => (
-                  <tr key={r.id} onClick={() => handleRowClick(r.id)} style={{ cursor: 'pointer' }}>
+                  <tr
+                    key={r.id}
+                    onClick={() => handleRowClick(r.id)}
+                    style={{ cursor: 'pointer' }}
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRowClick(r.id)}
+                  >
                     <td>
-                      <span
-                        className="mono"
-                        style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}
-                      >
+                      <span className="mono" style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}>
                         {r.id}
                       </span>
                     </td>
                     <td>
-                      <code style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>
-                        {r.command.length > 38 ? `${r.command.slice(0, 38)}...` : r.command}
+                      <code style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                        {r.command.length > 40 ? `${r.command.slice(0, 40)}…` : r.command}
                       </code>
                     </td>
                     <td>
-                      <span className="badge purple">{r.commandFamily}</span>
+                      <span className="badge violet">{r.commandFamily}</span>
                     </td>
                     <td>
-                      <span
-                        className="mono"
-                        style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
-                      >
-                        {r.fingerprint.slice(0, 16)}...
+                      <span className="mono" style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                        {r.fingerprint.slice(0, 16)}…
                       </span>
                     </td>
                     <td>
                       {r.wilsonLowerBound !== null ? (
-                        <span style={{ fontWeight: 600, color: 'var(--accent-emerald)' }}>
-                          {(r.wilsonLowerBound * 100).toFixed(1)}%
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span className="mono" style={{ fontWeight: 600, color: 'var(--status-success)' }}>
+                            {(r.wilsonLowerBound * 100).toFixed(1)}%
+                          </span>
+                          <div
+                            style={{
+                              width: '45px',
+                              height: '5px',
+                              background: 'rgba(125, 140, 160, 0.15)',
+                              borderRadius: '3px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${r.wilsonLowerBound * 100}%`,
+                                height: '100%',
+                                background: 'var(--status-success)',
+                              }}
+                            />
+                          </div>
+                        </div>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>—</span>
                       )}
@@ -171,19 +234,20 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
                         <span className="badge gray">RECORDED</span>
                       )}
                     </td>
-                    <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <td style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                       {new Date(r.createdAt).toLocaleDateString()}
                     </td>
-                    <td>
+                    <td style={{ textAlign: 'right' }}>
                       <button
                         className="btn btn-outline"
-                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                        style={{ padding: '0.22rem 0.65rem', fontSize: '0.74rem' }}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRowClick(r.id);
                         }}
+                        aria-label={`Inspect record ${r.id}`}
                       >
-                        Inspect
+                        Inspect →
                       </button>
                     </td>
                   </tr>
@@ -194,7 +258,7 @@ export function RecordBrowserScreen({ records, onFetchDetail }: Props): ReactNod
         </div>
       </div>
 
-      {/* Detail Drawer */}
+      {/* Slide-Out Detail Drawer */}
       <RecordDetailDrawer record={selectedRecord} onClose={() => setSelectedRecord(null)} />
     </div>
   );

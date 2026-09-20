@@ -18,18 +18,44 @@ import { SecurityAuditScreen } from './components/SecurityAuditScreen.js';
 import { BenchmarkScreen } from './components/BenchmarkScreen.js';
 
 export default function App(): ReactNode {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('agent-memory-theme') as 'dark' | 'light') || 'dark';
+  });
+
   const [activeScreen, setActiveScreen] = useState<string>('overview');
   const [stats, setStats] = useState<MemoryStats | null>(null);
   const [records, setRecords] = useState<MemoryRecordSummary[]>([]);
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
   const [events, setEvents] = useState<LogEvent[]>([]);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Sync theme with document attribute and localStorage
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('agent-memory-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Initial data load
   useEffect(() => {
-    fetchStats();
-    fetchRecords();
-    fetchApprovals();
+    const loadAll = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      try {
+        await Promise.all([fetchStats(), fetchRecords(), fetchApprovals()]);
+      } catch (err) {
+        setFetchError('Failed to communicate with the local bridge server.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAll();
 
     // Setup SSE connection
     let eventSource: EventSource | null = null;
@@ -45,7 +71,6 @@ export default function App(): ReactNode {
           const parsed = JSON.parse(e.data) as LogEvent;
           setEvents((prev) => [...prev, parsed].slice(-200));
 
-          // Refresh stats or approvals if relevant event received
           if (parsed.event?.includes('record') || parsed.event?.includes('verify')) {
             fetchStats();
             fetchRecords();
@@ -159,21 +184,24 @@ export default function App(): ReactNode {
 
   return (
     <div className="app-container">
-      {/* Top Header Navigation */}
+      {/* Precision Top Navigation */}
       <header className="top-nav">
         <div className="brand-section">
-          <div className="brand-badge">⚡</div>
-          <div>
-            <div className="brand-title">Memory Console</div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              agent-memory-mcp • Observability Dashboard
-            </div>
+          <div className="brand-icon-box" title="Agent Memory Observability Console">
+            ⚡
+          </div>
+          <div className="brand-meta">
+            <span className="brand-title">Memory Console</span>
+            <span className="brand-subtitle mono">agent-memory-mcp • v0.1.0</span>
           </div>
         </div>
 
-        {/* Navigation Tabs for All 7 Screens */}
-        <nav className="nav-links">
+        {/* Segmented Navigation Tab Bar */}
+        <nav className="nav-links" role="tablist" aria-label="Dashboard views">
           <button
+            id="nav-tab-overview"
+            role="tab"
+            aria-selected={activeScreen === 'overview'}
             className={`nav-tab ${activeScreen === 'overview' ? 'active' : ''}`}
             onClick={() => setActiveScreen('overview')}
           >
@@ -181,21 +209,20 @@ export default function App(): ReactNode {
           </button>
 
           <button
+            id="nav-tab-feed"
+            role="tab"
+            aria-selected={activeScreen === 'feed'}
             className={`nav-tab ${activeScreen === 'feed' ? 'active' : ''}`}
             onClick={() => setActiveScreen('feed')}
           >
             Live Activity
-            {events.length > 0 && (
-              <span
-                className="nav-badge"
-                style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)' }}
-              >
-                {events.length}
-              </span>
-            )}
+            {events.length > 0 && <span className="nav-badge cyan">{events.length}</span>}
           </button>
 
           <button
+            id="nav-tab-records"
+            role="tab"
+            aria-selected={activeScreen === 'records'}
             className={`nav-tab ${activeScreen === 'records' ? 'active' : ''}`}
             onClick={() => setActiveScreen('records')}
           >
@@ -204,6 +231,9 @@ export default function App(): ReactNode {
           </button>
 
           <button
+            id="nav-tab-explain"
+            role="tab"
+            aria-selected={activeScreen === 'explain'}
             className={`nav-tab ${activeScreen === 'explain' ? 'active' : ''}`}
             onClick={() => setActiveScreen('explain')}
           >
@@ -211,6 +241,9 @@ export default function App(): ReactNode {
           </button>
 
           <button
+            id="nav-tab-approvals"
+            role="tab"
+            aria-selected={activeScreen === 'approvals'}
             className={`nav-tab ${activeScreen === 'approvals' ? 'active' : ''}`}
             onClick={() => setActiveScreen('approvals')}
           >
@@ -219,6 +252,9 @@ export default function App(): ReactNode {
           </button>
 
           <button
+            id="nav-tab-security"
+            role="tab"
+            aria-selected={activeScreen === 'security'}
             className={`nav-tab ${activeScreen === 'security' ? 'active' : ''}`}
             onClick={() => setActiveScreen('security')}
           >
@@ -229,6 +265,9 @@ export default function App(): ReactNode {
           </button>
 
           <button
+            id="nav-tab-benchmarks"
+            role="tab"
+            aria-selected={activeScreen === 'benchmarks'}
             className={`nav-tab ${activeScreen === 'benchmarks' ? 'active' : ''}`}
             onClick={() => setActiveScreen('benchmarks')}
           >
@@ -236,32 +275,76 @@ export default function App(): ReactNode {
           </button>
         </nav>
 
-        {/* Connection status indicator */}
-        <div className="status-badge">
-          <span
-            className="pulse-dot"
-            style={{ background: isStreaming ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}
-          />
-          <span>{isStreaming ? '127.0.0.1:4321' : 'Reconnecting...'}</span>
+        {/* Nav Actions: Status Badge & Theme Switcher */}
+        <div className="nav-actions">
+          <div className="status-badge" title="SSE Bridge Pipeline Status">
+            <span
+              className="pulse-dot"
+              style={{
+                background: isStreaming ? 'var(--status-success)' : 'var(--status-warning)',
+              }}
+            />
+            <span>{isStreaming ? '127.0.0.1:4321' : 'Reconnecting...'}</span>
+          </div>
+
+          <button
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            aria-label="Toggle visual theme"
+          >
+            {theme === 'dark' ? '☀' : '☾'}
+          </button>
         </div>
       </header>
 
-      {/* Main Content View */}
+      {/* Main Screen Content View */}
       <main className="main-content">
+        {fetchError && (
+          <div className="error-banner">
+            <div>
+              <strong>Connection Warning:</strong> {fetchError}
+            </div>
+            <button
+              className="btn btn-outline"
+              style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              onClick={() => {
+                fetchStats();
+                fetchRecords();
+                fetchApprovals();
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {activeScreen === 'overview' && (
-          <OverviewScreen stats={stats} onNavigate={(screen) => setActiveScreen(screen)} />
+          <OverviewScreen
+            stats={stats}
+            isLoading={isLoading}
+            onNavigate={(screen) => setActiveScreen(screen)}
+          />
         )}
         {activeScreen === 'feed' && (
           <LiveFeedScreen events={events} isStreaming={isStreaming} onClear={() => setEvents([])} />
         )}
         {activeScreen === 'records' && (
-          <RecordBrowserScreen records={records} onFetchDetail={handleFetchRecordDetail} />
+          <RecordBrowserScreen
+            records={records}
+            isLoading={isLoading}
+            onFetchDetail={handleFetchRecordDetail}
+          />
         )}
         {activeScreen === 'explain' && (
           <ExplainabilityScreen onFetchExplainability={handleFetchExplainability} />
         )}
         {activeScreen === 'approvals' && (
-          <ApprovalQueueScreen approvals={approvals} onDecision={handleDecision} />
+          <ApprovalQueueScreen
+            approvals={approvals}
+            isLoading={isLoading}
+            onDecision={handleDecision}
+          />
         )}
         {activeScreen === 'security' && <SecurityAuditScreen onFetchAudit={handleFetchAudit} />}
         {activeScreen === 'benchmarks' && (

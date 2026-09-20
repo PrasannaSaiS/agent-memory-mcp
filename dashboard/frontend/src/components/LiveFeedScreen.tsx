@@ -27,53 +27,77 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
     return true;
   });
 
-  const getEventBadge = (event?: string, quarantined?: boolean) => {
-    if (quarantined) return <span className="badge rose">QUARANTINED</span>;
-    if (!event) return <span className="badge gray">INFO</span>;
-    if (event.includes('record')) return <span className="badge emerald">RECORD_FAILURE</span>;
-    if (event.includes('find')) return <span className="badge cyan">FIND_FIX</span>;
-    if (event.includes('verify')) return <span className="badge purple">VERIFY_FIX</span>;
-    return <span className="badge gray">{event.toUpperCase()}</span>;
+  const getToolCallTheme = (evt: LogEvent) => {
+    if (evt.quarantined || evt.status?.includes('quarantine')) {
+      return {
+        typeClass: 'quarantine',
+        badge: <span className="badge rose">QUARANTINE_ALERT</span>,
+      };
+    }
+    const eventName = evt.event?.toLowerCase() || '';
+    if (eventName.includes('record')) {
+      return {
+        typeClass: 'record',
+        badge: <span className="badge emerald">RECORD_FAILURE</span>,
+      };
+    }
+    if (eventName.includes('find')) {
+      return {
+        typeClass: 'find',
+        badge: <span className="badge cyan">FIND_FIX</span>,
+      };
+    }
+    if (eventName.includes('verify')) {
+      return {
+        typeClass: 'verify',
+        badge: <span className="badge violet">VERIFY_FIX</span>,
+      };
+    }
+    return {
+      typeClass: '',
+      badge: <span className="badge gray">{evt.event?.toUpperCase() || 'INFO'}</span>,
+    };
   };
 
   return (
     <div>
-      <div
-        className="screen-header"
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
-      >
-        <div>
-          <h1 className="screen-title">Live Activity Feed</h1>
-          <p className="screen-subtitle">
-            Real-time SSE event pipeline streaming MCP tool calls, fingerprinting, and retrieval
-            decisions.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <div className="status-badge">
-            <span
-              className="pulse-dot"
-              style={{ background: isStreaming ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}
-            />
-            {isStreaming ? 'SSE Active' : 'Disconnected'}
+      <div className="screen-header">
+        <div className="screen-title-row">
+          <div>
+            <h1 className="screen-title">Live Activity Feed</h1>
+            <p className="screen-subtitle">
+              High-throughput SSE event stream of MCP tool calls, deterministic fingerprinting, and retrieval decisions.
+            </p>
           </div>
 
-          <button
-            className={`btn ${autoScroll ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setAutoScroll(!autoScroll)}
-          >
-            {autoScroll ? 'Auto-scroll ON' : 'Auto-scroll PAUSED'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+            <div className="status-badge">
+              <span
+                className="pulse-dot"
+                style={{
+                  background: isStreaming ? 'var(--status-success)' : 'var(--status-danger)',
+                }}
+              />
+              <span>{isStreaming ? 'SSE Active (Streaming)' : 'Disconnected'}</span>
+            </div>
 
-          <button className="btn btn-outline" onClick={onClear}>
-            Clear
-          </button>
+            <button
+              className={`btn ${autoScroll ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setAutoScroll(!autoScroll)}
+              aria-label="Toggle auto-scrolling"
+            >
+              {autoScroll ? 'Auto-scroll: ON' : 'Auto-scroll: PAUSED'}
+            </button>
+
+            <button className="btn btn-outline" onClick={onClear} aria-label="Clear event stream">
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+      {/* Filter Tabs Toolbar */}
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.15rem', flexWrap: 'wrap' }}>
         {[
           { id: 'all', label: `All Events (${events.length})` },
           { id: 'record', label: 'Record Failure' },
@@ -85,109 +109,107 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
             key={tab.id}
             className={`nav-tab ${filter === tab.id ? 'active' : ''}`}
             onClick={() => setFilter(tab.id)}
-            style={{ background: filter === tab.id ? 'var(--bg-card)' : 'transparent' }}
+            style={{
+              background: filter === tab.id ? 'var(--bg-surface)' : 'transparent',
+              border: filter === tab.id ? '1px solid var(--border-subtle)' : '1px solid transparent',
+            }}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Event Stream Container */}
+      {/* High-Performance Event Stream Container */}
       <div
         className="panel"
         style={{
-          height: '650px',
+          height: '620px',
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.75rem',
-          padding: '1.25rem',
-          background: '#090d16',
+          gap: '0.65rem',
+          padding: '1rem',
+          background: 'var(--bg-code)',
         }}
       >
         {filteredEvents.length === 0 ? (
-          <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No activity captured yet</p>
-            <p style={{ fontSize: '0.85rem' }}>
-              MCP server calls and log writes to logs.jsonl will stream here in real time.
+          <div className="empty-state">
+            <div className="empty-state-icon">📡</div>
+            <h2 className="empty-state-title">Awaiting Live Telemetry</h2>
+            <p className="empty-state-desc">
+              Events stream in real time over SSE when an AI agent calls tools (`record_failure`, `find_fix`, or `verify_fix`).
             </p>
           </div>
         ) : (
-          filteredEvents.map((evt, idx) => (
-            <div
-              key={idx}
-              style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                padding: '0.9rem 1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                borderLeft: evt.quarantined
-                  ? '3px solid var(--accent-rose)'
-                  : evt.event?.includes('record')
-                    ? '3px solid var(--accent-emerald)'
-                    : evt.event?.includes('find')
-                      ? '3px solid var(--accent-cyan)'
-                      : '3px solid var(--border-subtle)',
-              }}
-            >
-              <div
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  {getEventBadge(evt.event, evt.quarantined)}
-                  <span
-                    style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}
-                  >
-                    {evt.msg ?? evt.event}
-                  </span>
-                </div>
-                <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {evt.time ? new Date(evt.time).toLocaleTimeString() : 'now'}
-                </span>
-              </div>
+          filteredEvents.map((evt, idx) => {
+            const { typeClass, badge } = getToolCallTheme(evt);
 
-              {/* Event Metadata details */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                {evt.fingerprint && (
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Fingerprint: </span>
-                    <span className="mono" style={{ color: 'var(--accent-cyan)' }}>
-                      {String(evt.fingerprint).slice(0, 18)}...
+            return (
+              <div key={idx} className={`feed-item ${typeClass}`}>
+                {/* Header Line */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    {badge}
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                      {evt.msg ?? evt.event}
                     </span>
                   </div>
-                )}
-                {evt.command && (
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Command: </span>
-                    <code style={{ color: 'var(--text-primary)' }}>{String(evt.command)}</code>
-                  </div>
-                )}
-                {evt.matchCount !== undefined && (
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Matches: </span>
-                    <strong style={{ color: 'var(--accent-emerald)' }}>{evt.matchCount}</strong>
-                  </div>
-                )}
-                {Boolean(evt.id) && (
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Record ID: </span>
-                    <span className="mono">{String(evt.id)}</span>
-                  </div>
-                )}
+
+                  <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    {evt.time ? new Date(evt.time).toLocaleTimeString() : 'now'}
+                  </span>
+                </div>
+
+                {/* Monospace Metadata Row */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: '0.85rem',
+                    fontSize: '0.76rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  {evt.command && (
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>cmd: </span>
+                      <code style={{ color: 'var(--text-primary)' }}>{String(evt.command)}</code>
+                    </div>
+                  )}
+
+                  {evt.fingerprint && (
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>fp: </span>
+                      <span className="mono" style={{ color: 'var(--accent-cyan)' }}>
+                        {String(evt.fingerprint).slice(0, 16)}…
+                      </span>
+                    </div>
+                  )}
+
+                  {evt.matchCount !== undefined && (
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>matches: </span>
+                      <strong style={{ color: 'var(--status-success)' }}>{evt.matchCount}</strong>
+                    </div>
+                  )}
+
+                  {evt.repo && (
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>repo: </span>
+                      <span className="mono">{String(evt.repo)}</span>
+                    </div>
+                  )}
+
+                  {evt.quarantined && (
+                    <span className="badge rose" style={{ fontSize: '0.68rem' }}>
+                      BLOCKED
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>
