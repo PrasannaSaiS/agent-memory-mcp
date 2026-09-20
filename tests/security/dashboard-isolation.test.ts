@@ -93,7 +93,6 @@ describe('Dashboard Process Isolation & Security Invariants', () => {
     // Intercept stdout to verify zero protocol pollution
     let interceptedStdout = '';
     // Save original write reference; use arrow to avoid 'this' binding issues
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalStdoutWrite = process.stdout.write;
     process.stdout.write = ((chunk: string | Uint8Array) => {
       interceptedStdout += String(chunk);

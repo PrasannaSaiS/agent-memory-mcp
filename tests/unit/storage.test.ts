@@ -108,7 +108,6 @@ describe('Storage and Indexing', () => {
     await jsonl.append(thirdRecord);
 
     let stderrOutput = '';
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     const origStderrWrite = process.stderr.write;
     process.stderr.write = ((chunk: string | Uint8Array) => {
       stderrOutput += String(chunk);

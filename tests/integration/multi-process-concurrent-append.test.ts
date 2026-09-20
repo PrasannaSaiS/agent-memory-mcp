@@ -5,7 +5,6 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { JsonlStorage } from '../../src/storage/jsonl.js';
 import { SqliteIndex } from '../../src/storage/index.js';
-import type { MemoryRecord } from '../../src/types.js';
 
 describe('Multi-Process Concurrent Append Integration Test', () => {
   let tmpDir: string;

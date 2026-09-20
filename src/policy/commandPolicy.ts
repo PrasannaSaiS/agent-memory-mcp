@@ -180,10 +180,12 @@ export class CommandPolicyEngine {
       const lines = content.split('\n').filter((l) => l.trim().length > 0);
       for (const line of lines) {
         try {
-          const record = JSON.parse(line) as Partial<ApprovalRecord>;
+          const parsed: unknown = JSON.parse(line);
+          if (typeof parsed !== 'object' || parsed === null) {
+            continue;
+          }
+          const record = parsed as Record<string, unknown>;
           if (
-            !record ||
-            typeof record !== 'object' ||
             typeof record.command !== 'string' ||
             typeof record.approvalId !== 'string' ||
             (record.decision !== 'approve' && record.decision !== 'reject')

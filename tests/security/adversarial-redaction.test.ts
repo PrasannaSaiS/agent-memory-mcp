@@ -164,13 +164,14 @@ describe('Adversarial Secret Redaction Test Suite', () => {
 
       expect(
         wasRedacted,
-        `Case failed: [${testCase.category}] ${testCase.name} -> wasRedacted=${wasRedacted}, expected=${testCase.expectedRedacted}, result: ${redacted}`,
+        `Case failed: [${testCase.category}] ${testCase.name} -> wasRedacted=${String(wasRedacted)}, expected=${String(testCase.expectedRedacted)}, result: ${redacted}`,
       ).toBe(testCase.expectedRedacted);
     }
 
     const precision = truePositives / (truePositives + falsePositives);
     const recall = truePositives / (truePositives + falseNegatives);
 
+    expect(trueNegatives).toBeGreaterThan(0);
     // Baseline cleartext & clean text must achieve 100% precision
     expect(precision).toBe(1.0);
     // Across the combined corpus with adversarial evasions, recall is measured
@@ -179,7 +180,9 @@ describe('Adversarial Secret Redaction Test Suite', () => {
 
   it('verifies calculateShannonEntropy threshold behavior', () => {
     // English prose entropy is typically ~3.5 - 4.1
-    const englishEntropy = calculateShannonEntropy('This is a normal compilation error in the typescript build process');
+    const englishEntropy = calculateShannonEntropy(
+      'This is a normal compilation error in the typescript build process',
+    );
     expect(englishEntropy).toBeLessThan(4.2);
 
     // Repeated characters have near-zero entropy
@@ -187,7 +190,9 @@ describe('Adversarial Secret Redaction Test Suite', () => {
     expect(repeatedEntropy).toBe(0);
 
     // Random base64 string has high entropy > 4.5
-    const randomBase64Entropy = calculateShannonEntropy('K8v9P2mQ5rT7wX1zY4bN6cE8uI0oA3sD5fG7hJ9kL1m=');
+    const randomBase64Entropy = calculateShannonEntropy(
+      'K8v9P2mQ5rT7wX1zY4bN6cE8uI0oA3sD5fG7hJ9kL1m=',
+    );
     expect(randomBase64Entropy).toBeGreaterThan(4.5);
   });
 });

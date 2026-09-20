@@ -1,12 +1,30 @@
 {
   "name": "agent-memory-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Repository-scoped, git-synced error-fix memory MCP server. Targets MCP specification 2026-07-28.",
   "type": "module",
+  "license": "MIT",
+  "author": "Prasanna Sai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrasannaSaiS/agent-memory-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PrasannaSaiS/agent-memory-mcp/issues"
+  },
+  "homepage": "https://github.com/PrasannaSaiS/agent-memory-mcp#readme",
   "engines": {
     "node": ">=22.5.0"
   },
   "main": "dist/server.js",
+  "bin": {
+    "agent-memory-mcp": "./dist/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
@@ -31,7 +49,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.17.0",
     "pino": "9.7.0",
-    "uuid": "11.1.0",
+    "uuid": "11.1.1",
     "zod": "3.25.67"
   },
   "devDependencies": {

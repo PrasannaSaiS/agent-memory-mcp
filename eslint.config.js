@@ -1,4 +1,4 @@
-﻿// @ts-check
+// @ts-check
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import prettierConfig from "eslint-config-prettier";
@@ -31,6 +31,19 @@ export default [
       "prettier/prettier": "error",
       // Safety rules from AGENTS.md
       "no-console": "error",
+    },
+  },
+  {
+    files: ["tests/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/unbound-method": "off",
     },
   },
 ];

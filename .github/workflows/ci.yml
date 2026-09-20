@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test Node ${{ matrix.node-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [22.x, 24.x]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formatting Check
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Run Test Suite
+        run: npm test
+
+      - name: Package Verification (Dry Run)
+        run: npm pack --dry-run
+
+  dashboard:
+    name: Dashboard Subpackages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: Test Dashboard Bridge
+        run: |
+          cd dashboard/bridge
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm run build
+
+      - name: Test Dashboard Frontend
+        run: |
+          cd dashboard/frontend
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm run build

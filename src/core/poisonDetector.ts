@@ -88,7 +88,10 @@ export const HOMOGLYPH_MAP: Record<string, string> = {
 export function canonicalizeHomoglyphs(text: string): string {
   if (!text) return '';
   // 1. Strip zero-width and invisible characters
-  let cleaned = text.replace(/[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\uFEFF\u00AD]/g, '');
+  let cleaned = text.replace(
+    /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\uFEFF\u00AD]/g,
+    '',
+  );
   // 2. Unicode NFKC normalization (converts fullwidth ASCII to standard ASCII)
   cleaned = cleaned.normalize('NFKC');
   // 3. Map Cyrillic / Greek confusable glyphs

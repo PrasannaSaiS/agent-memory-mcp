@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * MCP Server entry point — agent-memory-mcp.
  * Targets MCP specification 2026-07-28.
@@ -120,32 +121,45 @@ export function validateStartupEnvironment(
     fail('AGENT_MEMORY_DIR', 'AGENT_MEMORY_DIR is set but empty. Must be a non-empty string.');
   }
 
-  const memoryDir = memDirRaw ? path.resolve(memDirRaw.trim()) : path.join(process.cwd(), '.agent-memory');
+  const memoryDir = memDirRaw
+    ? path.resolve(memDirRaw.trim())
+    : path.join(process.cwd(), '.agent-memory');
 
   if (fs.existsSync(memoryDir)) {
     try {
       const stat = fs.statSync(memoryDir);
       if (!stat.isDirectory()) {
-        fail('AGENT_MEMORY_DIR', `AGENT_MEMORY_DIR path exists but is not a directory: ${memoryDir}`);
+        fail(
+          'AGENT_MEMORY_DIR',
+          `AGENT_MEMORY_DIR path exists but is not a directory: ${memoryDir}`,
+        );
       }
-    } catch (e: any) {
-      if (e.message?.startsWith('[startup_validation_failed]')) throw e;
-      fail('AGENT_MEMORY_DIR', `Failed to inspect AGENT_MEMORY_DIR: ${e.message}`);
+    } catch (e: unknown) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (err.message.startsWith('[startup_validation_failed]')) throw err;
+      fail('AGENT_MEMORY_DIR', `Failed to inspect AGENT_MEMORY_DIR: ${err.message}`);
     }
   } else {
     // Check parent directory
     const parentDir = path.dirname(memoryDir);
     if (!fs.existsSync(parentDir)) {
-      fail('AGENT_MEMORY_DIR', `Parent directory for AGENT_MEMORY_DIR does not exist: ${parentDir}`);
+      fail(
+        'AGENT_MEMORY_DIR',
+        `Parent directory for AGENT_MEMORY_DIR does not exist: ${parentDir}`,
+      );
     }
     try {
       const parentStat = fs.statSync(parentDir);
       if (!parentStat.isDirectory()) {
-        fail('AGENT_MEMORY_DIR', `Parent path for AGENT_MEMORY_DIR is not a directory: ${parentDir}`);
+        fail(
+          'AGENT_MEMORY_DIR',
+          `Parent path for AGENT_MEMORY_DIR is not a directory: ${parentDir}`,
+        );
       }
-    } catch (e: any) {
-      if (e.message?.startsWith('[startup_validation_failed]')) throw e;
-      fail('AGENT_MEMORY_DIR', `Failed to inspect parent directory: ${e.message}`);
+    } catch (e: unknown) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (err.message.startsWith('[startup_validation_failed]')) throw err;
+      fail('AGENT_MEMORY_DIR', `Failed to inspect parent directory: ${err.message}`);
     }
   }
 
@@ -160,8 +174,13 @@ try {
   startupConfig = validateStartupEnvironment(process.env, { exitOnError: false });
 } catch {
   startupConfig = {
-    memoryDir: path.resolve(process.env.AGENT_MEMORY_DIR ?? path.join(process.cwd(), '.agent-memory')),
-    repositoryId: ((process.env.AGENT_MEMORY_REPO ?? path.basename(process.cwd())) || 'unknown').trim(),
+    memoryDir: path.resolve(
+      process.env.AGENT_MEMORY_DIR ?? path.join(process.cwd(), '.agent-memory'),
+    ),
+    repositoryId: (
+      (process.env.AGENT_MEMORY_REPO ?? path.basename(process.cwd())) ||
+      'unknown'
+    ).trim(),
   };
 }
 
@@ -181,7 +200,7 @@ const service = new MemoryService({
 export const server = new Server(
   {
     name: 'agent-memory-mcp',
-    version: '0.1.0',
+    version: '1.0.0',
   },
   {
     capabilities: {
@@ -425,34 +444,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 let isShuttingDown = false;
 
-export async function shutdown(signal = 'SIGTERM'): Promise<void> {
-  if (isShuttingDown) return;
+export function shutdown(signal = 'SIGTERM'): Promise<void> {
+  if (isShuttingDown) return Promise.resolve();
   isShuttingDown = true;
-  logger.info({ event: 'server_shutdown_start', signal }, `Received ${signal}, initiating graceful shutdown`);
+  logger.info(
+    { event: 'server_shutdown_start', signal },
+    `Received ${signal}, initiating graceful shutdown`,
+  );
   try {
     service.close();
   } catch (err) {
     logger.error({ event: 'shutdown_error', error: String(err) }, 'Error during storage shutdown');
   }
   logger.info({ event: 'server_shutdown_complete' }, 'agent-memory-mcp server shutdown complete');
+  return Promise.resolve();
 }
 
 export async function startServer(): Promise<void> {
   validateStartupEnvironment(process.env, { exitOnError: true });
 
-  const onSignal = (signal: string) => {
-    shutdown(signal)
-      .then(() => process.exit(0))
-      .catch(() => process.exit(1));
+  const onSignal = (signal: string): void => {
+    void shutdown(signal)
+      .then(() => {
+        process.exit(0);
+      })
+      .catch(() => {
+        process.exit(1);
+      });
   };
 
-  process.once('SIGINT', () => onSignal('SIGINT'));
-  process.once('SIGTERM', () => onSignal('SIGTERM'));
+  process.once('SIGINT', () => {
+    onSignal('SIGINT');
+  });
+  process.once('SIGTERM', () => {
+    onSignal('SIGTERM');
+  });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info(
-    { event: 'server_started', transport: 'stdio', version: '0.1.0' },
+    { event: 'server_started', transport: 'stdio', version: '1.0.0' },
     'agent-memory-mcp server started',
   );
 }
