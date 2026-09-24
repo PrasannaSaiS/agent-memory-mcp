@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { LogEvent } from '../types.js';
 
 interface Props {
@@ -10,13 +11,7 @@ interface Props {
 export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNode {
   const [filter, setFilter] = useState<string>('all');
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (autoScroll && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [events, autoScroll]);
+  const feedRef = useRef<HTMLDivElement | null>(null);
 
   const filteredEvents = events.filter((e) => {
     if (filter === 'all') return true;
@@ -26,6 +21,25 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
     if (filter === 'quarantine') return e.quarantined || e.status?.includes('quarantine');
     return true;
   });
+
+  const virtualizer = useVirtualizer({
+    count: filteredEvents.length,
+    getScrollElement: () => feedRef.current,
+    estimateSize: () => 110,
+    overscan: 10,
+  });
+
+  useEffect(() => {
+    if (autoScroll && feedRef.current) {
+      const last = filteredEvents.length - 1;
+      if (last >= 0) {
+        const item = virtualizer.getVirtualItems().at(-1);
+        if (item) {
+          feedRef.current.scrollTo({ top: item.start + item.size, behavior: 'smooth' });
+        }
+      }
+    }
+  }, [autoScroll, filteredEvents.length, virtualizer]);
 
   const getToolCallTheme = (evt: LogEvent) => {
     if (evt.quarantined || evt.status?.includes('quarantine')) {
@@ -70,19 +84,17 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+          <div className="feed-header-controls">
             <div className="status-badge">
               <span
                 className="pulse-dot"
-                style={{
-                  background: isStreaming ? 'var(--status-success)' : 'var(--status-danger)',
-                }}
+                style={{ background: isStreaming ? 'var(--status-success)' : 'var(--status-danger)' }}
               />
               <span>{isStreaming ? 'SSE Active (Streaming)' : 'Disconnected'}</span>
             </div>
 
             <button
-              className={`btn ${autoScroll ? 'btn-primary' : 'btn-outline'}`}
+              className={`btn btn-outline ${autoScroll ? 'active' : ''}`}
               onClick={() => setAutoScroll(!autoScroll)}
               aria-label="Toggle auto-scrolling"
             >
@@ -96,8 +108,7 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
         </div>
       </div>
 
-      {/* Filter Tabs Toolbar */}
-      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.15rem', flexWrap: 'wrap' }}>
+      <div className="feed-filter-bar">
         {[
           { id: 'all', label: `All Events (${events.length})` },
           { id: 'record', label: 'Record Failure' },
@@ -119,99 +130,84 @@ export function LiveFeedScreen({ events, isStreaming, onClear }: Props): ReactNo
         ))}
       </div>
 
-      {/* High-Performance Event Stream Container */}
-      <div
-        className="panel"
-        style={{
-          height: '620px',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.65rem',
-          padding: '1rem',
-          background: 'var(--bg-code)',
-        }}
-      >
+      <div className="panel feed-panel">
         {filteredEvents.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📡</div>
             <h2 className="empty-state-title">Awaiting Live Telemetry</h2>
             <p className="empty-state-desc">
-              Events stream in real time over SSE when an AI agent calls tools (`record_failure`, `find_fix`, or `verify_fix`).
+              Events stream in real time over SSE when an AI agent calls tools (record_failure, find_fix, or verify_fix).
             </p>
           </div>
         ) : (
-          filteredEvents.map((evt, idx) => {
-            const { typeClass, badge } = getToolCallTheme(evt);
+          <div ref={feedRef} className="feed-scroll" style={{ height: '620px', overflow: 'auto' }}>
+            <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const evt = filteredEvents[virtualRow.index];
+                const { typeClass, badge } = getToolCallTheme(evt);
 
-            return (
-              <div key={idx} className={`feed-item ${typeClass}`}>
-                {/* Header Line */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    {badge}
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
-                      {evt.msg ?? evt.event}
-                    </span>
-                  </div>
+                return (
+                  <div
+                    key={`${evt.time ?? virtualRow.index}-${virtualRow.index}`}
+                    className={`feed-item ${typeClass}`}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        {badge}
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                          {evt.msg ?? evt.event}
+                        </span>
+                      </div>
 
-                  <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    {evt.time ? new Date(evt.time).toLocaleTimeString() : 'now'}
-                  </span>
-                </div>
-
-                {/* Monospace Metadata Row */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: '0.85rem',
-                    fontSize: '0.76rem',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  {evt.command && (
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>cmd: </span>
-                      <code style={{ color: 'var(--text-primary)' }}>{String(evt.command)}</code>
-                    </div>
-                  )}
-
-                  {evt.fingerprint && (
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>fp: </span>
-                      <span className="mono" style={{ color: 'var(--accent-cyan)' }}>
-                        {String(evt.fingerprint).slice(0, 16)}…
+                      <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {evt.time ? new Date(evt.time).toLocaleTimeString() : 'now'}
                       </span>
                     </div>
-                  )}
 
-                  {evt.matchCount !== undefined && (
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>matches: </span>
-                      <strong style={{ color: 'var(--status-success)' }}>{evt.matchCount}</strong>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.85rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                      {evt.command && (
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>cmd: </span>
+                          <code style={{ color: 'var(--text-primary)' }}>{String(evt.command)}</code>
+                        </div>
+                      )}
+
+                      {evt.fingerprint && (
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>fp: </span>
+                          <span className="mono" style={{ color: 'var(--accent)' }}>{String(evt.fingerprint).slice(0, 16)}…</span>
+                        </div>
+                      )}
+
+                      {evt.matchCount !== undefined && (
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>matches: </span>
+                          <strong style={{ color: 'var(--status-success)' }}>{evt.matchCount}</strong>
+                        </div>
+                      )}
+
+                      {evt.repo && (
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>repo: </span>
+                          <span className="mono">{String(evt.repo)}</span>
+                        </div>
+                      )}
+
+                      {evt.quarantined && <span className="badge rose" style={{ fontSize: '0.68rem' }}>BLOCKED</span>}
                     </div>
-                  )}
-
-                  {evt.repo && (
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>repo: </span>
-                      <span className="mono">{String(evt.repo)}</span>
-                    </div>
-                  )}
-
-                  {evt.quarantined && (
-                    <span className="badge rose" style={{ fontSize: '0.68rem' }}>
-                      BLOCKED
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );
