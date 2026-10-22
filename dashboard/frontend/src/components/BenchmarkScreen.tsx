@@ -98,18 +98,31 @@ export function BenchmarkScreen({ onFetchBenchmarks }: Props): ReactNode {
             const isOurWork = i === data.baselines.length - 1;
 
             return (
-              <div key={i} className="benchmark-card" style={{ border: isOurWork ? '2px solid var(--status-success)' : '1px solid var(--border-subtle)' }}>
-                {isOurWork && (
-                  <div style={{ position: 'absolute', top: '-10px', right: '10px' }}>
-                    <span className="badge emerald" style={{ fontSize: '0.65rem' }}>OUR WORK (B3)</span>
-                  </div>
-                )}
-
-                <div className="benchmark-card-title">{b.name}</div>
+              <div key={i} className={`benchmark-card${isOurWork ? ' benchmark-card-ours' : ''}`}>
+                <div className="benchmark-card-heading">
+                  <div className="benchmark-card-title">{b.name}</div>
+                  {isOurWork && (
+                    <span className="badge emerald benchmark-card-ours-badge">OUR WORK (B3)</span>
+                  )}
+                </div>
                 <div className="benchmark-card-body">
                   <div>
                     <div className="metric-row"><span>Success Rate</span><strong className="mono" style={{ color: isOurWork ? 'var(--status-success)' : 'var(--text-primary)' }}>{(b.successRate * 100).toFixed(0)}%</strong></div>
-                    <div className="metric-bar"><div style={{ width: `${b.successRate * 100}%`, background: isOurWork ? 'var(--status-success)' : 'var(--accent-blue)' }} /></div>
+                    <div
+                      className="metric-bar"
+                      role="meter"
+                      aria-label={`${b.name} success rate`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(b.successRate * 100)}
+                    >
+                      <div
+                        style={{
+                          width: `${b.successRate * 100}%`,
+                          background: isOurWork ? 'var(--status-success)' : 'var(--accent)',
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="metric-row"><span>Time to Repair</span><strong className="mono">{b.timeToRepairSec}s</strong></div>
                   <div className="metric-row"><span>Tool Calls</span><strong className="mono" style={{ color: 'var(--accent-cyan)' }}>{b.toolCalls}</strong></div>

@@ -121,15 +121,15 @@ export function RecordDetailDrawer({ record, onClose }: Props): ReactNode {
 
           <div style={{ marginBottom: '1.35rem' }}>
             <h3 style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.45rem', color: 'var(--text-primary)' }}>Deterministic SHA-256 Fingerprint</h3>
-            <div className="code-block mono" style={{ color: 'var(--accent-cyan)', fontSize: '0.78rem' }}>{record.fingerprint}</div>
+            <div className="code-block mono fingerprint-value">{record.fingerprint}</div>
           </div>
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <h3 style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>Error Output Comparison</h3>
               <div style={{ display: 'flex', gap: '0.3rem' }}>
-                <button className={`btn ${outputTab === 'normalized' ? 'btn-primary' : 'btn-outline'}`} style={{ padding: '0.2rem 0.6rem', fontSize: '0.72rem' }} onClick={() => setOutputTab('normalized')}>Normalized Output</button>
-                <button className={`btn ${outputTab === 'raw' ? 'btn-primary' : 'btn-outline'}`} style={{ padding: '0.2rem 0.6rem', fontSize: '0.72rem' }} onClick={() => setOutputTab('raw')}>Raw (Redacted)</button>
+                <button className="btn btn-outline" aria-pressed={outputTab === 'normalized'} style={{ padding: '0.2rem 0.6rem', fontSize: '0.72rem' }} onClick={() => setOutputTab('normalized')}>Normalized Output</button>
+                <button className="btn btn-outline" aria-pressed={outputTab === 'raw'} style={{ padding: '0.2rem 0.6rem', fontSize: '0.72rem' }} onClick={() => setOutputTab('raw')}>Raw (Redacted)</button>
               </div>
             </div>
             <pre className="code-block" style={{ maxHeight: '180px', fontSize: '0.76rem' }}>{outputTab === 'normalized' ? record.normalizedOutput || 'Normalized output unavailable in summary' : record.rawOutputRedacted || 'Raw redacted output unavailable in summary'}</pre>

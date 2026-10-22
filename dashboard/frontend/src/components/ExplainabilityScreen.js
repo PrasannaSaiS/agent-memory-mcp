@@ -19,7 +19,7 @@ export function ExplainabilityScreen({ onFetchExplainability }) {
     };
     const threshold = data?.threshold ?? 0.7;
     if (isLoading) {
-        return (_jsxs("div", { children: [_jsxs("div", { className: "screen-header", children: [_jsx("div", { className: "skeleton-box", style: { width: '280px', height: '28px', marginBottom: '8px' } }), _jsx("div", { className: "skeleton-box", style: { width: '520px', height: '16px' } })] }), _jsx("div", { className: "panel", style: { height: '120px' }, children: _jsx("div", { className: "skeleton-box", style: { height: '100%' } }) }), _jsx("div", { className: "panel", style: { height: '400px' }, children: _jsx("div", { className: "skeleton-box", style: { height: '100%' } }) })] }));
+        return (_jsxs("div", { children: [_jsxs("div", { className: "screen-header", children: [_jsxs("div", { className: "explainability-loading", role: "status", "aria-live": "polite", children: [_jsx("span", { className: "explainability-loading-spinner", "aria-hidden": "true" }), _jsx("span", { children: "Loading retrieval explanation\u2026" })] }), _jsx("div", { className: "skeleton-box", style: { width: '280px', height: '28px', marginBottom: '8px' } }), _jsx("div", { className: "skeleton-box", style: { width: '520px', height: '16px' } })] }), _jsx("div", { className: "panel", style: { height: '120px' }, children: _jsx("div", { className: "skeleton-box", style: { height: '100%' } }) }), _jsx("div", { className: "panel", style: { height: '400px' }, children: _jsx("div", { className: "skeleton-box", style: { height: '100%' } }) })] }));
     }
     return (_jsxs("div", { children: [_jsx("div", { className: "screen-header", children: _jsxs("div", { className: "screen-title-row", children: [_jsxs("div", { children: [_jsx("h1", { className: "screen-title", children: "Retrieval Explainability" }), _jsx("p", { className: "screen-subtitle", children: "Transparent multi-factor ranking, fuzzy fallback evaluation, and stale-penalty scoring against the acceptance threshold." })] }), _jsx("div", { className: "badge cyan", style: { padding: '0.35rem 0.75rem', fontSize: '0.8rem' }, children: "Deterministic Scoring Engine" })] }) }), _jsx("div", { className: "panel", style: {
                     background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(37, 99, 235, 0.04))',
@@ -52,11 +52,7 @@ export function ExplainabilityScreen({ onFetchExplainability }) {
                                                             color: passes ? 'var(--status-success)' : 'var(--status-danger)',
                                                         }, children: [(cand.trustScore * 100).toFixed(1), "%"] }), _jsx("span", { className: `badge ${passes ? 'emerald' : 'rose'}`, style: { fontSize: '0.68rem', fontWeight: 700 }, children: passes ? '✓ ACCEPTED' : '✗ REJECTED (BELOW THRESHOLD)' })] })] }), _jsxs("div", { className: "explain-bar-track", children: [_jsx("div", { className: "explain-bar-fill", style: {
                                                     width: `${scorePercent}%`,
-                                                    background: passes
-                                                        ? cand.matchType === 'exact'
-                                                            ? 'linear-gradient(90deg, var(--status-success), var(--accent-cyan))'
-                                                            : 'linear-gradient(90deg, var(--accent-violet), var(--accent-blue))'
-                                                        : 'var(--status-danger)',
+                                                    background: passes ? 'var(--status-success)' : 'var(--status-danger)',
                                                 } }), _jsx("div", { className: "explain-threshold-line", style: { left: `${threshold * 100}%` }, title: `Retrieval Threshold: ${(threshold * 100).toFixed(0)}%` })] }), _jsxs("div", { style: {
                                             display: 'flex',
                                             flexWrap: 'wrap',

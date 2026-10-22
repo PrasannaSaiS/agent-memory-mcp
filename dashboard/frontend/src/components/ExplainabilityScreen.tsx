@@ -29,6 +29,10 @@ export function ExplainabilityScreen({ onFetchExplainability }: Props): ReactNod
     return (
       <div>
         <div className="screen-header">
+          <div className="explainability-loading" role="status" aria-live="polite">
+            <span className="explainability-loading-spinner" aria-hidden="true" />
+            <span>Loading retrieval explanation…</span>
+          </div>
           <div className="skeleton-box" style={{ width: '280px', height: '28px', marginBottom: '8px' }} />
           <div className="skeleton-box" style={{ width: '520px', height: '16px' }} />
         </div>
@@ -191,11 +195,7 @@ export function ExplainabilityScreen({ onFetchExplainability }: Props): ReactNod
                       className="explain-bar-fill"
                       style={{
                         width: `${scorePercent}%`,
-                        background: passes
-                          ? cand.matchType === 'exact'
-                            ? 'linear-gradient(90deg, var(--status-success), var(--accent-cyan))'
-                            : 'linear-gradient(90deg, var(--accent-violet), var(--accent-blue))'
-                          : 'var(--status-danger)',
+                        background: passes ? 'var(--status-success)' : 'var(--status-danger)',
                       }}
                     />
                     {/* Visual Threshold indicator line */}

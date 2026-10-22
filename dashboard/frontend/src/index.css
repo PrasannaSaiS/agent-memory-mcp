@@ -28,6 +28,7 @@
   --text-secondary: #90949c;
   --text-muted: #666a73;
   --text-inverted: #131315;
+  --code-foreground: #e2e8f0;
 
   /* Semantic Severity: desaturated, functional-only */
   --status-success: #389369;
@@ -79,6 +80,7 @@
   --text-secondary: #565b65;
   --text-muted: #7d8390;
   --text-inverted: #ffffff;
+  --code-foreground: #e2e8f0;
 
   /* Semantic Severity */
   --status-success: #237750;
@@ -815,9 +817,16 @@ tbody tr:last-child td {
   border-radius: 6px;
   padding: 0.75rem 1rem;
   font-size: 0.8rem;
-  color: #e2e8f0;
+  color: var(--code-foreground);
   overflow-x: auto;
   line-height: 1.45;
+}
+
+.fingerprint-value {
+  display: block;
+  color: var(--code-foreground);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
 }
 
 .feed-header-controls {
@@ -976,16 +985,33 @@ tbody tr:last-child td {
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.benchmark-card-ours {
+  border: 2px solid var(--status-success);
+}
+
+.benchmark-card-ours-badge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+}
+
 .benchmark-card:hover {
   transform: translateY(-2px);
   border-color: var(--border-strong);
+}
+
+.benchmark-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .benchmark-card-title {
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 0.75rem;
 }
 
 .benchmark-card-body {
@@ -1018,7 +1044,7 @@ tbody tr:last-child td {
 .metric-bar > div {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+  background: var(--accent);
 }
 
 /* ==========================================================================
@@ -1225,6 +1251,31 @@ tbody tr:last-child td {
   background-size: 200% 100%;
   animation: skeletonLoading 1.5s infinite;
   border-radius: 4px;
+}
+
+.explainability-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+  color: var(--status-success);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.explainability-loading-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid var(--status-success-bd);
+  border-top-color: var(--status-success);
+  border-radius: 50%;
+  animation: explainabilitySpinner 0.8s linear infinite;
+}
+
+@keyframes explainabilitySpinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes skeletonLoading {
